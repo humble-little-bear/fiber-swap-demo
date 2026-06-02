@@ -1,4 +1,4 @@
-import { ConnectButton } from '@fiber-pay/react';
+import { FiberNodeButton } from '@fiber-pay/react';
 import { ArrowLeftRight, Settings, BookOpen } from 'lucide-react';
 import styles from './Header.module.css';
 
@@ -22,7 +22,7 @@ export function Header() {
           <span>Settings</span>
         </button>
         <div className={styles.connectWrap}>
-          <ConnectButton
+          <FiberNodeButton
             network="testnet"
             strategy="passkey"
             passkeyUsername="FiberSwap User"

@@ -1,6 +1,5 @@
 import { Header } from './components/Header'
 import { SwapCard } from './components/SwapCard'
-import { NodeInfoSection } from './components/NodeInfoSection'
 import styles from './components/App.module.css'
 
 function App() {
@@ -19,15 +18,6 @@ function App() {
 
         {/* Swap Card */}
         <SwapCard />
-
-        {/* Fiber SDK Integration Section */}
-        <div className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.dot} />
-            <span className={styles.sectionLabel}>Fiber SDK Integration</span>
-          </div>
-          <NodeInfoSection />
-        </div>
       </main>
 
       {/* Footer */}
