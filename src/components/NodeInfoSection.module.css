@@ -1,0 +1,89 @@
+.container {
+  width: var(--content-width);
+  max-width: 100%;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  animation: slideUp 0.5s ease;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tabBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tabBtn:hover {
+  color: var(--text-primary);
+}
+
+.tabBtnActive {
+  composes: tabBtn;
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-pink);
+}
+
+.tabContent {
+  padding: 20px 16px;
+}
+
+.tabPane {
+  animation: fadeIn 0.3s ease;
+}
+
+.tabDescription {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.sdkCard {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.sdkCardPadding {
+  composes: sdkCard;
+  padding: 16px;
+}
+
+.statusItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.statusItem:last-child {
+  border-bottom: none;
+}
+
+.statusLabel {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.statusValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
