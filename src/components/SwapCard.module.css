@@ -7,6 +7,7 @@
   box-shadow: var(--shadow-card);
   padding: 16px;
   animation: slideUp 0.4s ease;
+  overflow: hidden;
 }
 
 .cardHeader {
@@ -129,7 +130,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-width: 0;
 }
 
 .tokenInputField {
@@ -139,6 +139,8 @@
   font-weight: 500;
   color: var(--text-primary);
   caret-color: var(--accent-pink);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tokenSelectBtn {
