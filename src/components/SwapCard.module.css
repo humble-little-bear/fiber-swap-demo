@@ -129,10 +129,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .tokenInputField {
   flex: 1;
+  min-width: 0;
   font-size: 28px;
   font-weight: 500;
   color: var(--text-primary);
@@ -151,6 +153,8 @@
   font-weight: 600;
   border: 1px solid var(--border-color);
   transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tokenSelectBtn:hover {
@@ -231,4 +235,29 @@
 
 .spin {
   animation: spin 1s linear infinite;
+}
+
+@media (max-width: 380px) {
+  .card {
+    padding: 12px;
+  }
+
+  .tokenInput {
+    padding: 12px;
+  }
+
+  .tokenInputField {
+    font-size: 22px;
+  }
+
+  .tokenSelectBtn {
+    padding: 4px 8px;
+    font-size: 14px;
+    gap: 4px;
+  }
+
+  .swapBtn {
+    padding: 14px 0;
+    font-size: 15px;
+  }
 }

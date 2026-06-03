@@ -5,10 +5,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: 16px 24px;
   background: rgba(13, 17, 28, 0.8);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
+  gap: 12px;
 }
 
 .brand {
@@ -40,6 +42,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .navItem {
@@ -73,4 +76,27 @@
   border-radius: var(--radius-full);
   border: none;
   cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 12px 16px;
+  }
+
+  .brandText {
+    font-size: 18px;
+  }
+
+  .navItem span {
+    display: none;
+  }
+
+  .navItem {
+    padding: 8px;
+  }
+
+  .connectBtn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
 }

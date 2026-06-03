@@ -78,3 +78,17 @@
   color: var(--accent-pink);
   font-weight: 600;
 }
+
+@media (max-width: 380px) {
+  .main {
+    padding: 24px 12px 40px;
+  }
+
+  .heroTitle {
+    font-size: 28px;
+  }
+
+  .heroSubtitle {
+    font-size: 14px;
+  }
+}
