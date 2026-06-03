@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@fiber-pay/react": "^0.2.6",
+    "@nervosnetwork/fiber-js": "^0.8.1",
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
@@ -27,6 +28,7 @@
     "globals": "^17.6.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vite-plugin-cross-origin-isolation": "^0.1.6"
   }
 }
