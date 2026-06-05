@@ -1,5 +1,6 @@
 import { Header } from './components/Header'
 import { SwapCard } from './components/SwapCard'
+import { NodeStatusBadge } from './components/NodeStatusBadge'
 import styles from './components/App.module.css'
 
 function App() {
@@ -15,6 +16,8 @@ function App() {
             Lightning-fast, low-cost token swaps powered by the Fiber Network on Nervos CKB.
           </p>
         </div>
+
+        <NodeStatusBadge />
 
         {/* Swap Card */}
         <SwapCard />
