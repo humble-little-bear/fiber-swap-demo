@@ -1,6 +1,7 @@
+import { useState, useEffect, useRef } from 'react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
 import type { CchOrder } from '../types';
-import { Copy, CheckCircle2, XCircle, Clock, Plane, Send, Loader2 } from 'lucide-react';
+import { Copy, CheckCircle2, XCircle, Clock, Plane, Send, Loader2, Check } from 'lucide-react';
 import styles from './OrderPanel.module.css';
 
 interface OrderPanelProps {
@@ -40,10 +41,23 @@ export function OrderPanel({ order }: OrderPanelProps) {
   const { data, loading } = useOrderStatus(order.payment_hash);
   const current = data ?? order;
   const currentStep = STATUS_ORDER[current.status] ?? 0;
+  const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      setCopied(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // ignore
     }
@@ -70,7 +84,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
             onClick={() => handleCopy(current.incoming_invoice)}
             title="Copy invoice"
           >
-            <Copy size={14} />
+            {copied ? <Check size={14} /> : <Copy size={14} />}
           </button>
         </div>
       </div>
@@ -101,7 +115,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
                 )}
               </div>
               <span className={active && !isFailed ? styles.labelActive : styles.labelInactive}>
-                {statusLabel(s)}
+                {isFailed ? 'Failed' : statusLabel(s)}
               </span>
             </div>
           );

@@ -7,27 +7,32 @@ export function useNodeInfo(pollInterval = 10000) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
   const fetchInfo = useCallback(async () => {
     try {
       const info = await getNodeInfo();
+      if (!isMountedRef.current) return;
       setData(info);
       setError(null);
     } catch (err) {
+      if (!isMountedRef.current) return;
       setError(err instanceof Error ? err : new Error(String(err)));
       setData((prev) => (prev ? { ...prev, online: false } : null));
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    isMountedRef.current = true;
 
     const tick = async () => {
-      if (cancelled) return;
+      if (!isMountedRef.current) return;
       await fetchInfo();
-      if (!cancelled) {
+      if (isMountedRef.current) {
         timerRef.current = setTimeout(tick, pollInterval);
       }
     };
@@ -35,7 +40,7 @@ export function useNodeInfo(pollInterval = 10000) {
     tick();
 
     return () => {
-      cancelled = true;
+      isMountedRef.current = false;
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;

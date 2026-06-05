@@ -111,7 +111,8 @@ export function SwapCard() {
         </div>
         <div className={styles.tokenInputBody}>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             placeholder="0"
             value={btcSats}
             onChange={(e) => setBtcSats(e.target.value)}

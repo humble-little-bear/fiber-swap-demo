@@ -3,6 +3,7 @@ import { Router } from 'express';
 const router = Router();
 
 // Simplified mock quote: 1 BTC = 13_000_000 CKB
+// TODO: replace with live rate feed or env-configurable rate
 const BTC_TO_CKB_RATE = 13_000_000;
 
 interface QuoteBody {

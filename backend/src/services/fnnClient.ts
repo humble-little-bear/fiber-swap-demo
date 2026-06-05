@@ -2,33 +2,37 @@ import { config } from '../config.js';
 
 interface RpcRequest {
   jsonrpc: '2.0';
-  id: number;
+  id: string;
   method: string;
   params: unknown[];
 }
 
 interface RpcResponse<T = unknown> {
   jsonrpc: '2.0';
-  id: number;
+  id: string;
   result?: T;
   error?: { code: number; message: string; data?: unknown };
 }
 
-let requestId = 0;
-
 export async function fnnRpcCall<T>(method: string, params: unknown[] = []): Promise<T> {
   const body: RpcRequest = {
     jsonrpc: '2.0',
-    id: ++requestId,
+    id: Math.random().toString(36).slice(2),
     method,
     params,
   };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
   const res = await fetch(config.fnnRpcUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: controller.signal,
   });
+
+  clearTimeout(timeout);
 
   if (!res.ok) {
     throw new Error(`FNN RPC HTTP error: ${res.status} ${res.statusText}`);

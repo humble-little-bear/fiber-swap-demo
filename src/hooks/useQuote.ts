@@ -7,6 +7,17 @@ export function useQuote() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   const requestQuote = useCallback((btcSats: number) => {
     if (debounceRef.current) {
@@ -25,22 +36,18 @@ export function useQuote() {
     debounceRef.current = setTimeout(async () => {
       try {
         const q = await postQuote(btcSats);
+        if (!isMountedRef.current) return;
         setQuote(q);
       } catch (err) {
+        if (!isMountedRef.current) return;
         setError(err instanceof Error ? err : new Error(String(err)));
         setQuote(null);
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     }, 300);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
   }, []);
 
   return { quote, loading, error, requestQuote };

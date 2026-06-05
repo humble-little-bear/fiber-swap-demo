@@ -18,6 +18,11 @@ app.use('/api/quote', quoteRouter);
 app.use('/api/swap/ckb-to-btc', swapRouter);
 app.use('/api/order/:payment_hash', orderRouter);
 
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
 // Global error handler
 app.use(
   (

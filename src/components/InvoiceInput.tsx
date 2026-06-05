@@ -61,6 +61,7 @@ export function InvoiceInput({ value, onChange, disabled }: InvoiceInputProps) {
         onBlur={() => setTouched(true)}
         disabled={disabled}
         rows={3}
+        maxLength={5000}
       />
       {showError && (
         <div className={styles.error}>

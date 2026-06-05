@@ -14,7 +14,7 @@ router.get('/', async (req, res, next) => {
   try {
     const { payment_hash } = req.params as { payment_hash: string };
 
-    if (!payment_hash) {
+    if (!payment_hash || !payment_hash.trim()) {
       res.status(400).json({ error: 'Missing payment_hash' });
       return;
     }
