@@ -164,6 +164,39 @@
   background: var(--bg-elevated);
 }
 
+.tokenStaticBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.spinInline {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+  vertical-align: middle;
+}
+
+.errorRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 77, 79, 0.08);
+  color: #ff4d4f;
+  font-size: 13px;
+}
+
 .tokenInputValue {
   font-size: 13px;
   color: var(--text-tertiary);

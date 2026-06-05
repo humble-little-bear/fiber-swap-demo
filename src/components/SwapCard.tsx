@@ -1,272 +1,187 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { ArrowDown, Settings, RefreshCw, ChevronDown, Info } from 'lucide-react';
-import type { Token } from '../types';
-import { TokenSelectModal } from './TokenSelectModal';
-import { TokenLogo } from './TokenLogo';
+import { useState, useCallback, useMemo } from 'react';
+import { ArrowDown, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { useNodeInfo } from '../hooks/useNodeInfo';
+import { useQuote } from '../hooks/useQuote';
+import { useSwap } from '../hooks/useSwap';
+import { InvoiceInput } from './InvoiceInput';
 import styles from './SwapCard.module.css';
 
-const DEFAULT_FROM: Token = {
-  symbol: 'CKB',
-  name: 'Nervos CKB',
-  address: '0x000...',
-  decimals: 8,
-  balance: '12500.45',
-  price: 0.0085,
-};
+const CKB_SYMBOL = 'CKB';
+const BTC_SYMBOL = 'BTC';
+const CKB_DECIMALS = 8;
 
-const DEFAULT_TO: Token = {
-  symbol: 'USDC',
-  name: 'USD Coin',
-  address: '0x001...',
-  decimals: 6,
-  balance: '3450.00',
-  price: 1.0,
-};
+function hexToDecimal(hex: string): string {
+  const clean = hex.startsWith('0x') || hex.startsWith('0X') ? hex.slice(2) : hex;
+  if (!clean) return '0';
+  return BigInt(`0x${clean}`).toString(10);
+}
 
-export function SwapCard() {
-  const [fromToken, setFromToken] = useState<Token>(DEFAULT_FROM);
-  const [toToken, setToToken] = useState<Token>(DEFAULT_TO);
-  const [fromAmount, setFromAmount] = useState('');
-  const [toAmount, setToAmount] = useState('');
-  const [selectingFor, setSelectingFor] = useState<'from' | 'to' | null>(null);
-  const [slippage, setSlippage] = useState(0.5);
-  const [showSettings, setShowSettings] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+interface SwapCardProps {
+  onOrderCreated?: (paymentHash: string, incomingInvoice: string, outgoingPayReq: string) => void;
+}
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
+export function SwapCard({ onOrderCreated }: SwapCardProps) {
+  const [btcSats, setBtcSats] = useState('');
+  const [invoice, setInvoice] = useState('');
+  const { data: nodeInfo } = useNodeInfo();
+  const { quote, loading: quoteLoading } = useQuote(btcSats ? parseInt(btcSats, 10) : null);
+  const { loading: swapLoading, error: swapError, createOrder } = useSwap();
 
-  const handleFromAmountChange = useCallback(
-    (val: string) => {
-      setFromAmount(val);
-      if (!val || !fromToken.price || !toToken.price) {
-        setToAmount('');
-        return;
-      }
-      const num = parseFloat(val);
-      if (!isFinite(num)) {
-        setToAmount('');
-        return;
-      }
-      const fromVal = num * fromToken.price;
-      const toVal = fromVal / toToken.price;
-      setToAmount(toVal.toFixed(toToken.decimals > 6 ? 6 : toToken.decimals));
-    },
-    [fromToken, toToken]
-  );
+  const quoteCkb = useMemo(() => {
+    if (!quote) return '';
+    const raw = hexToDecimal(quote.ckb_amount);
+    const val = Number(raw) / Math.pow(10, CKB_DECIMALS);
+    return val.toFixed(CKB_DECIMALS > 6 ? 6 : CKB_DECIMALS);
+  }, [quote]);
 
-  const handleToAmountChange = useCallback(
-    (val: string) => {
-      setToAmount(val);
-      if (!val || !fromToken.price || !toToken.price) {
-        setFromAmount('');
-        return;
-      }
-      const num = parseFloat(val);
-      if (!isFinite(num)) {
-        setFromAmount('');
-        return;
-      }
-      const toVal = num * toToken.price;
-      const fromVal = toVal / fromToken.price;
-      setFromAmount(fromVal.toFixed(fromToken.decimals > 6 ? 6 : fromToken.decimals));
-    },
-    [fromToken, toToken]
-  );
+  const backendOnline = nodeInfo?.online ?? false;
+  const invoiceValid = invoice.trim().toLowerCase().startsWith('lntb');
+  const canSubmit = backendOnline && invoiceValid && !!btcSats && parseInt(btcSats, 10) > 0 && !swapLoading;
 
-  const handleSwapTokens = useCallback(() => {
-    setFromToken(toToken);
-    setToToken(fromToken);
-    setFromAmount(toAmount);
-    setToAmount(fromAmount);
-  }, [fromToken, toToken, fromAmount, toAmount]);
-
-  const exchangeRate = useMemo(() => {
-    if (!fromToken.price || !toToken.price) return null;
-    return (fromToken.price / toToken.price).toFixed(6);
-  }, [fromToken, toToken]);
-
-  const handleSelectToken = useCallback(
-    (token: Token) => {
-      if (selectingFor === 'from') {
-        if (token.symbol === toToken.symbol) {
-          setToToken(fromToken);
-        }
-        setFromToken(token);
-      } else {
-        if (token.symbol === fromToken.symbol) {
-          setFromToken(toToken);
-        }
-        setToToken(token);
-      }
-      setFromAmount('');
-      setToAmount('');
-    },
-    [selectingFor, fromToken, toToken]
-  );
-
-  const handleSwap = useCallback(() => {
-    setLoading(true);
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
+  const handleBtcChange = useCallback((val: string) => {
+    // Only allow positive integers (satoshis)
+    if (val === '') {
+      setBtcSats('');
+      return;
     }
-    timerRef.current = setTimeout(() => setLoading(false), 1500);
+    const num = parseInt(val, 10);
+    if (Number.isNaN(num) || num < 0) return;
+    setBtcSats(num.toString());
   }, []);
+
+  const handleCreateOrder = useCallback(async () => {
+    if (!canSubmit) return;
+    try {
+      const res = await createOrder(invoice.trim());
+      if (onOrderCreated && res) {
+        onOrderCreated(res.payment_hash, res.incoming_invoice, res.outgoing_pay_req);
+      }
+    } catch {
+      // error handled in hook
+    }
+  }, [canSubmit, createOrder, invoice, onOrderCreated]);
 
   return (
     <div className={styles.card}>
       {/* Card Header */}
       <div className={styles.cardHeader}>
-        <span className={styles.cardTitle}>Swap</span>
+        <span className={styles.cardTitle}>Swap CKB → BTC</span>
         <div className={styles.cardActions}>
           <button
             className={styles.iconBtn}
             onClick={() => {
-              setFromAmount('');
-              setToAmount('');
+              setBtcSats('');
+              setInvoice('');
             }}
           >
             <RefreshCw size={18} />
           </button>
-          <button
-            className={showSettings ? styles.iconBtnActive : styles.iconBtn}
-            onClick={() => setShowSettings((s) => !s)}
-          >
-            <Settings size={18} />
-          </button>
         </div>
       </div>
 
-      {/* Settings Panel */}
-      {showSettings && (
-        <div className={styles.settingsPanel}>
-          <div className={styles.settingsLabel}>Slippage tolerance</div>
-          <div className={styles.slippageRow}>
-            {[0.1, 0.5, 1.0].map((v) => (
-              <button
-                key={v}
-                onClick={() => setSlippage(v)}
-                className={slippage === v ? styles.slippageBtnActive : styles.slippageBtn}
-              >
-                {v}%
-              </button>
-            ))}
+      {/* From Input (CKB) */}
+      <div className={styles.tokenInput}>
+        <div className={styles.tokenInputHeader}>
+          <span className={styles.tokenInputLabel}>Sell</span>
+          <span className={styles.tokenInputBalance}>Nervos CKB</span>
+        </div>
+        <div className={styles.tokenInputBody}>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0"
+            value={quoteCkb}
+            readOnly
+            className={styles.tokenInputField}
+          />
+          <div className={styles.tokenStaticBadge}>
+            {CKB_SYMBOL}
           </div>
         </div>
-      )}
-
-      {/* From Input */}
-      <TokenInput
-        token={fromToken}
-        amount={fromAmount}
-        onAmountChange={handleFromAmountChange}
-        onSelectToken={() => setSelectingFor('from')}
-        label="Sell"
-      />
-
-      {/* Swap Toggle */}
-      <div className={styles.swapToggleWrap}>
-        <button onClick={handleSwapTokens} className={styles.swapToggleBtn}>
-          <ArrowDown size={18} />
-        </button>
+        {quote && (
+          <div className={styles.tokenInputValue}>
+            {quote.rate} · Fee {quote.fee_estimate}
+          </div>
+        )}
+        {quoteLoading && (
+          <div className={styles.tokenInputValue}>
+            <Loader2 size={12} className={styles.spinInline} /> Getting quote…
+          </div>
+        )}
       </div>
 
-      {/* To Input */}
-      <TokenInput
-        token={toToken}
-        amount={toAmount}
-        onAmountChange={handleToAmountChange}
-        onSelectToken={() => setSelectingFor('to')}
-        label="Buy"
-      />
+      {/* Swap Toggle (visual only, fixed direction) */}
+      <div className={styles.swapToggleWrap}>
+        <div className={styles.swapToggleBtn}>
+          <ArrowDown size={18} />
+        </div>
+      </div>
 
-      {/* Exchange Rate */}
-      {exchangeRate && fromAmount && (
+      {/* To Input (BTC sats) */}
+      <div className={styles.tokenInput}>
+        <div className={styles.tokenInputHeader}>
+          <span className={styles.tokenInputLabel}>Buy</span>
+          <span className={styles.tokenInputBalance}>Lightning Testnet</span>
+        </div>
+        <div className={styles.tokenInputBody}>
+          <input
+            type="number"
+            inputMode="numeric"
+            placeholder="0"
+            value={btcSats}
+            onChange={(e) => handleBtcChange(e.target.value)}
+            className={styles.tokenInputField}
+          />
+          <div className={styles.tokenStaticBadge}>
+            {BTC_SYMBOL}
+          </div>
+        </div>
+        {btcSats && (
+          <div className={styles.tokenInputValue}>
+            {parseInt(btcSats, 10).toLocaleString()} sats
+          </div>
+        )}
+      </div>
+
+      {/* Invoice Input */}
+      <div style={{ marginTop: 16 }}>
+        <InvoiceInput value={invoice} onChange={setInvoice} disabled={swapLoading} />
+      </div>
+
+      {/* Rate display */}
+      {quote && btcSats && (
         <div className={styles.rateRow}>
-          <span>
-            1 {fromToken.symbol} ≈ {exchangeRate} {toToken.symbol}
-          </span>
-          <Info size={14} />
+          <span>Quote valid until {new Date(quote.valid_until).toLocaleTimeString()}</span>
         </div>
       )}
 
-      {/* Swap Button */}
+      {/* Error */}
+      {swapError && (
+        <div className={styles.errorRow}>
+          <AlertCircle size={14} />
+          {swapError}
+        </div>
+      )}
+
+      {/* Submit Button */}
       <button
-        onClick={handleSwap}
-        disabled={loading || !fromAmount}
+        onClick={handleCreateOrder}
+        disabled={!canSubmit}
         className={styles.swapBtn}
       >
-        {loading ? (
+        {swapLoading ? (
           <span className={styles.swapBtnLoading}>
-            <RefreshCw size={18} className={styles.spin} />
-            Swapping...
+            <Loader2 size={18} className={styles.spin} />
+            Creating Order…
           </span>
-        ) : !fromAmount ? (
-          'Enter an amount'
+        ) : !backendOnline ? (
+          'Backend Offline'
+        ) : !invoiceValid || !btcSats ? (
+          'Enter amount and invoice'
         ) : (
-          'Swap'
+          'Create Order'
         )}
       </button>
-
-      {/* Token Select Modal */}
-      <TokenSelectModal
-        isOpen={selectingFor !== null}
-        onClose={() => setSelectingFor(null)}
-        onSelect={handleSelectToken}
-        excludeToken={selectingFor === 'from' ? toToken : fromToken}
-      />
-    </div>
-  );
-}
-
-function TokenInput({
-  token,
-  amount,
-  onAmountChange,
-  onSelectToken,
-  label,
-}: {
-  token: Token;
-  amount: string;
-  onAmountChange: (val: string) => void;
-  onSelectToken: () => void;
-  label: string;
-}) {
-  return (
-    <div className={styles.tokenInput}>
-      <div className={styles.tokenInputHeader}>
-        <span className={styles.tokenInputLabel}>{label}</span>
-        <span className={styles.tokenInputBalance}>
-          Balance: {token.balance} {token.symbol}
-        </span>
-      </div>
-
-      <div className={styles.tokenInputBody}>
-        <input
-          type="number"
-          placeholder="0"
-          value={amount}
-          onChange={(e) => onAmountChange(e.target.value)}
-          className={styles.tokenInputField}
-        />
-        <button onClick={onSelectToken} className={styles.tokenSelectBtn}>
-          <TokenLogo symbol={token.symbol} />
-          {token.symbol}
-          <ChevronDown size={16} color="var(--text-secondary)" />
-        </button>
-      </div>
-
-      {amount && token.price && (
-        <div className={styles.tokenInputValue}>
-          ${(parseFloat(amount || '0') * token.price).toFixed(2)}
-        </div>
-      )}
     </div>
   );
 }

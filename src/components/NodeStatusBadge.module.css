@@ -1,0 +1,45 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dotOnline {
+  color: var(--accent-cyan);
+  display: flex;
+  align-items: center;
+}
+
+.dotOffline {
+  color: #ff4d4f;
+  display: flex;
+  align-items: center;
+}
+
+.textOnline {
+  color: var(--text-secondary);
+}
+
+.textOffline {
+  color: #ff4d4f;
+}
+
+.channels {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.loading {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
