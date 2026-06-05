@@ -33,7 +33,7 @@ export function useOrderStatus(paymentHash: string | undefined) {
     const tick = async () => {
       const isInitial = !hasFetchedRef.current;
       try {
-        if (isInitial) setLoading(true);
+        if (isInitial && isMountedRef.current) setLoading(true);
         const order = await getOrder(paymentHash);
         if (!isMountedRef.current) return;
         hasFetchedRef.current = true;

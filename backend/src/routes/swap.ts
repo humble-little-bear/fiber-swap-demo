@@ -13,16 +13,16 @@ interface SendBtcResult {
   invoice: string;
 }
 
-router.post('/ckb-to-btc', async (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
-    const { btc_pay_req } = req.body as SendBtcBody;
+    const { btc_pay_req, currency } = req.body as SendBtcBody;
 
     if (!btc_pay_req || typeof btc_pay_req !== 'string') {
       res.status(400).json({ error: 'Missing or invalid btc_pay_req' });
       return;
     }
 
-    const result = await fnnRpcCall<SendBtcResult>('send_btc', [{ btc_pay_req }]);
+    const result = await fnnRpcCall<SendBtcResult>('send_btc', [{ btc_pay_req, currency }]);
 
     const now = new Date().toISOString();
     res.json({
