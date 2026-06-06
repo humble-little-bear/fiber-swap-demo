@@ -6,8 +6,8 @@
 
 .header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
 .label {
@@ -24,13 +24,13 @@
   font-weight: 600;
   color: var(--accent-blue);
   background: transparent;
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: var(--radius-md);
   transition: background 0.2s;
 }
 
 .pasteBtn:hover:not(:disabled) {
-  background: rgba(76, 130, 251, 0.1);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .pasteBtn:disabled {
@@ -38,51 +38,32 @@
   cursor: not-allowed;
 }
 
-.inputWrap {
-  position: relative;
-}
-
 .input {
   width: 100%;
-  resize: none;
+  padding: 12px;
+  border-radius: var(--radius-lg);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 12px 36px 12px 12px;
-  font-size: 14px;
   color: var(--text-primary);
+  font-size: 14px;
   font-family: inherit;
-  line-height: 1.4;
+  resize: vertical;
   transition: border-color 0.2s;
 }
 
 .input:focus {
+  outline: none;
   border-color: var(--accent-blue);
 }
 
-.inputInvalid {
-  border-color: #ff4d4f;
+.inputError {
+  border-color: #ef4444;
 }
 
-.inputValid {
-  border-color: var(--accent-cyan);
-}
-
-.iconValid {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  color: var(--accent-cyan);
-}
-
-.iconInvalid {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  color: #ff4d4f;
-}
-
-.hintInvalid {
+.error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
-  color: #ff4d4f;
+  color: #ef4444;
 }

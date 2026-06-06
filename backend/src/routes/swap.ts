@@ -1,41 +1,40 @@
 import { Router } from 'express';
-import { fnnCall, type SendBtcResult } from '../services/fnnClient.js';
+import { fnnRpcCall } from '../services/fnnClient.js';
 
 const router = Router();
 
-interface SwapRequest {
+interface SendBtcBody {
   btc_pay_req: string;
   currency?: string;
 }
 
-router.post('/ckb-to-btc', async (req, res) => {
-  const { btc_pay_req, currency } = req.body as SwapRequest;
+interface SendBtcResult {
+  payment_hash: string;
+  invoice: string;
+}
 
-  if (!btc_pay_req || typeof btc_pay_req !== 'string') {
-    res.status(400).json({ error: 'btc_pay_req is required' });
-    return;
-  }
-
-  // Basic Lightning invoice prefix validation for testnet
-  if (!btc_pay_req.trim().toLowerCase().startsWith('lntb')) {
-    res.status(400).json({ error: 'Invalid testnet Lightning invoice (must start with lntb)' });
-    return;
-  }
-
+router.post('/', async (req, res, next) => {
   try {
-    const result = await fnnCall<SendBtcResult>('send_btc', [{ btc_pay_req, currency }]);
+    const { btc_pay_req, currency } = req.body as SendBtcBody;
 
+    if (!btc_pay_req || typeof btc_pay_req !== 'string') {
+      res.status(400).json({ error: 'Missing or invalid btc_pay_req' });
+      return;
+    }
+
+    const result = await fnnRpcCall<SendBtcResult>('send_btc', [{ btc_pay_req, currency }]);
+
+    const now = new Date().toISOString();
     res.json({
       order_id: result.payment_hash,
       payment_hash: result.payment_hash,
-      incoming_invoice: result.ckb_invoice,
+      incoming_invoice: result.invoice,
       outgoing_pay_req: btc_pay_req,
       status: 'Pending',
-      created_at: new Date().toISOString(),
+      created_at: now,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ error: 'Failed to create cross-chain order', details: message });
+    next(err);
   }
 });
 

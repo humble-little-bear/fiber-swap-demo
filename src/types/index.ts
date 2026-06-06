@@ -38,17 +38,3 @@ export interface NodeInfo {
   peer_count: number;
   online: boolean;
 }
-
-export interface SwapRequest {
-  btc_pay_req: string;
-  currency?: string;
-}
-
-export interface SwapResponse {
-  order_id: string;
-  payment_hash: string;
-  incoming_invoice: string;
-  outgoing_pay_req: string;
-  status: CchOrderStatus;
-  created_at: string;
-}

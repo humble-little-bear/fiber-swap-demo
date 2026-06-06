@@ -1,75 +1,73 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { api } from '../api/client';
+import { useState, useEffect, useRef } from 'react';
+import { getOrder } from '../api/client';
 import type { CchOrder, CchOrderStatus } from '../types';
 
 const TERMINAL_STATES: CchOrderStatus[] = ['Success', 'Failed'];
 
-interface UseOrderStatusResult {
-  order: CchOrder | null;
-  loading: boolean;
-  error: string | null;
+function nextInterval(current: number): number {
+  return Math.min(current * 1.5, 10000);
 }
 
-function clamp(val: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, val));
-}
-
-export function useOrderStatus(paymentHash: string | null): UseOrderStatusResult {
-  const [order, setOrder] = useState<CchOrder | null>(null);
+export function useOrderStatus(paymentHash: string | undefined) {
+  const [data, setData] = useState<CchOrder | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const attemptRef = useRef(0);
+  const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
+  const hasFetchedRef = useRef(false);
 
-  const fetchOrder = useCallback(async (hash: string) => {
-    try {
-      const o = await api.getOrder(hash);
-      setOrder(o);
-      setError(null);
-      return o.status;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setError(msg);
-      return null;
-    }
-  }, []);
-
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    attemptRef.current = 0;
-    queueMicrotask(() => {
-      setOrder(null);
+    isMountedRef.current = true;
+    hasFetchedRef.current = false;
+
+    if (!paymentHash) {
+      setData(null);
       setError(null);
       setLoading(false);
-    });
+      return;
+    }
 
-    if (!paymentHash) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let interval = 2000;
 
-    const poll = async () => {
-      setLoading(true);
-      const status = await fetchOrder(paymentHash);
-      setLoading(false);
+    const tick = async () => {
+      const isInitial = !hasFetchedRef.current;
+      try {
+        if (isInitial && isMountedRef.current) setLoading(true);
+        const order = await getOrder(paymentHash);
+        if (!isMountedRef.current) return;
+        hasFetchedRef.current = true;
+        setData(order);
+        setError(null);
 
-      if (status && TERMINAL_STATES.includes(status)) {
-        return;
+        if (!TERMINAL_STATES.includes(order.status) && isMountedRef.current) {
+          interval = nextInterval(interval);
+          timer = setTimeout(tick, interval);
+        }
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        hasFetchedRef.current = true;
+        const e = err instanceof Error ? err : new Error(String(err));
+        setError(e);
+        if (isMountedRef.current) {
+          interval = nextInterval(interval);
+          timer = setTimeout(tick, interval);
+        }
+      } finally {
+        if (isMountedRef.current && isInitial) {
+          setLoading(false);
+        }
       }
-
-      attemptRef.current += 1;
-      const delay = clamp(2000 * Math.pow(1.5, attemptRef.current - 1), 2000, 10000);
-      timerRef.current = setTimeout(poll, delay);
     };
 
-    poll();
+    tick();
 
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      isMountedRef.current = false;
+      if (timer) clearTimeout(timer);
     };
-  }, [paymentHash, fetchOrder]);
+  }, [paymentHash]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  return { order, loading, error };
+  return { data, loading, error };
 }

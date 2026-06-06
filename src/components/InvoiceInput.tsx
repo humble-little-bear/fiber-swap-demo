@@ -1,27 +1,41 @@
 import { useState, useCallback } from 'react';
-import { ClipboardPaste, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ClipboardPaste, AlertCircle } from 'lucide-react';
 import styles from './InvoiceInput.module.css';
 
 interface InvoiceInputProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, isValid: boolean) => void;
   disabled?: boolean;
 }
 
-export function InvoiceInput({ value, onChange, disabled }: InvoiceInputProps) {
-  const [pasteError, setPasteError] = useState<string | null>(null);
+// Simple BOLT11 prefix check
+function looksLikeInvoice(s: string): boolean {
+  const trimmed = s.trim();
+  if (!trimmed) return false;
+  return trimmed.toLowerCase().startsWith('lntb') || trimmed.toLowerCase().startsWith('lnbc');
+}
 
-  const isValid = value.trim().toLowerCase().startsWith('lntb');
-  const showValid = value.length > 0 && isValid;
-  const showInvalid = value.length > 0 && !isValid;
+export function InvoiceInput({ value, onChange, disabled }: InvoiceInputProps) {
+  const [touched, setTouched] = useState(false);
+
+  const isValid = !value || looksLikeInvoice(value);
+  const showError = touched && value && !isValid;
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const v = e.target.value;
+      onChange(v, looksLikeInvoice(v));
+    },
+    [onChange]
+  );
 
   const handlePaste = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
-      onChange(text.trim());
-      setPasteError(null);
+      onChange(text, looksLikeInvoice(text));
+      setTouched(true);
     } catch {
-      setPasteError('Clipboard access denied. Please paste manually.');
+      // ignore clipboard errors
     }
   }, [onChange]);
 
@@ -39,31 +53,21 @@ export function InvoiceInput({ value, onChange, disabled }: InvoiceInputProps) {
           Paste
         </button>
       </div>
-      <div className={styles.inputWrap}>
-        <textarea
-          className={`${styles.input} ${showInvalid ? styles.inputInvalid : ''} ${showValid ? styles.inputValid : ''}`}
-          rows={3}
-          placeholder="lntb..."
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-        />
-        {showValid && (
-          <div className={styles.iconValid}>
-            <CheckCircle2 size={18} />
-          </div>
-        )}
-        {showInvalid && (
-          <div className={styles.iconInvalid}>
-            <AlertCircle size={18} />
-          </div>
-        )}
-      </div>
-      {showInvalid && (
-        <span className={styles.hintInvalid}>Invoice must start with "lntb" (testnet)</span>
-      )}
-      {pasteError && (
-        <span className={styles.hintInvalid}>{pasteError}</span>
+      <textarea
+        className={`${styles.input} ${showError ? styles.inputError : ''}`}
+        placeholder="Paste a testnet BTC Lightning invoice (lntb...)"
+        value={value}
+        onChange={handleChange}
+        onBlur={() => setTouched(true)}
+        disabled={disabled}
+        rows={3}
+        maxLength={5000}
+      />
+      {showError && (
+        <div className={styles.error}>
+          <AlertCircle size={14} />
+          Does not look like a valid Lightning invoice
+        </div>
       )}
     </div>
   );

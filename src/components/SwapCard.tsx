@@ -1,172 +1,139 @@
-import { useState, useCallback, useMemo } from 'react';
-import { ArrowDown, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
-import { useNodeInfo } from '../hooks/useNodeInfo';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { RefreshCw, ArrowDown, Loader2 } from 'lucide-react';
 import { useQuote } from '../hooks/useQuote';
 import { useSwap } from '../hooks/useSwap';
 import { InvoiceInput } from './InvoiceInput';
+import { OrderPanel } from './OrderPanel';
 import styles from './SwapCard.module.css';
 
-const CKB_SYMBOL = 'CKB';
-const BTC_SYMBOL = 'BTC';
-const CKB_DECIMALS = 8;
+const SATOSHI_PER_BTC = 100_000_000;
 
-function hexToDecimal(hex: string): string {
-  const clean = hex.startsWith('0x') || hex.startsWith('0X') ? hex.slice(2) : hex;
-  if (!clean) return '0';
-  return BigInt(`0x${clean}`).toString(10);
-}
-
-interface SwapCardProps {
-  onOrderCreated?: (paymentHash: string, incomingInvoice: string, outgoingPayReq: string) => void;
-}
-
-export function SwapCard({ onOrderCreated }: SwapCardProps) {
+export function SwapCard() {
   const [btcSats, setBtcSats] = useState('');
   const [invoice, setInvoice] = useState('');
-  const { data: nodeInfo } = useNodeInfo();
-  const { quote, loading: quoteLoading } = useQuote(btcSats ? parseInt(btcSats, 10) : null);
-  const { loading: swapLoading, error: swapError, createOrder } = useSwap();
+  const [invoiceValid, setInvoiceValid] = useState(false);
+  const { quote, loading: quoteLoading, requestQuote } = useQuote();
+  const { order, loading: swapLoading, error: swapError, createOrder, reset } = useSwap();
 
-  const quoteCkb = useMemo(() => {
+  // Debounced quote request when btcSats changes
+  useEffect(() => {
+    const sats = parseFloat(btcSats);
+    if (btcSats && Number.isFinite(sats) && sats > 0) {
+      requestQuote(Math.round(sats));
+    } else {
+      requestQuote(0);
+    }
+  }, [btcSats, requestQuote]);
+
+  const ckbAmount = useMemo(() => {
     if (!quote) return '';
-    const raw = hexToDecimal(quote.ckb_amount);
-    const val = Number(raw) / Math.pow(10, CKB_DECIMALS);
-    return val.toFixed(CKB_DECIMALS > 6 ? 6 : CKB_DECIMALS);
+    const hex = quote.ckb_amount;
+    const shannons = parseInt(hex, 16);
+    return (shannons / SATOSHI_PER_BTC).toFixed(4);
   }, [quote]);
 
-  const backendOnline = nodeInfo?.online ?? false;
-  const invoiceValid = invoice.trim().toLowerCase().startsWith('lntb');
-  const canSubmit = backendOnline && invoiceValid && !!btcSats && parseInt(btcSats, 10) > 0 && !swapLoading;
-
-  const handleBtcChange = useCallback((val: string) => {
-    // Only allow positive integers (satoshis)
-    if (val === '') {
-      setBtcSats('');
-      return;
-    }
-    const num = parseInt(val, 10);
-    if (Number.isNaN(num) || num < 0) return;
-    setBtcSats(num.toString());
+  const handleInvoiceChange = useCallback((value: string, isValid: boolean) => {
+    setInvoice(value);
+    setInvoiceValid(isValid);
   }, []);
 
   const handleCreateOrder = useCallback(async () => {
-    if (!canSubmit) return;
-    try {
-      const res = await createOrder(invoice.trim());
-      if (onOrderCreated && res) {
-        onOrderCreated(res.payment_hash, res.incoming_invoice, res.outgoing_pay_req);
-      }
-    } catch {
-      // error handled in hook
-    }
-  }, [canSubmit, createOrder, invoice, onOrderCreated]);
+    if (!invoiceValid || !btcSats) return;
+    await createOrder(invoice.trim());
+  }, [invoiceValid, btcSats, invoice, createOrder]);
+
+  const handleReset = useCallback(() => {
+    setBtcSats('');
+    setInvoice('');
+    setInvoiceValid(false);
+    reset();
+  }, [reset]);
+
+  const canCreate = invoiceValid && btcSats && !quoteLoading && !swapLoading;
+
+  if (order) {
+    return (
+      <div className={styles.card}>
+        <OrderPanel order={order} />
+        <button className={styles.resetBtn} onClick={handleReset}>
+          <RefreshCw size={16} />
+          New Swap
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.card}>
       {/* Card Header */}
       <div className={styles.cardHeader}>
-        <span className={styles.cardTitle}>Swap CKB → BTC</span>
+        <span className={styles.cardTitle}>CKB → BTC Swap</span>
         <div className={styles.cardActions}>
-          <button
-            className={styles.iconBtn}
-            onClick={() => {
-              setBtcSats('');
-              setInvoice('');
-            }}
-          >
+          <button className={styles.iconBtn} onClick={handleReset} title="Reset">
             <RefreshCw size={18} />
           </button>
         </div>
       </div>
 
-      {/* From Input (CKB) */}
+      {/* CKB Input (top) */}
       <div className={styles.tokenInput}>
         <div className={styles.tokenInputHeader}>
-          <span className={styles.tokenInputLabel}>Sell</span>
-          <span className={styles.tokenInputBalance}>Nervos CKB</span>
+          <span className={styles.tokenInputLabel}>You send (CKB)</span>
         </div>
         <div className={styles.tokenInputBody}>
           <input
-            type="text"
-            inputMode="decimal"
+            type="number"
             placeholder="0"
-            value={quoteCkb}
+            value={ckbAmount}
             readOnly
             className={styles.tokenInputField}
           />
-          <div className={styles.tokenStaticBadge}>
-            {CKB_SYMBOL}
-          </div>
+          <div className={styles.tokenBadge}>CKB</div>
         </div>
         {quote && (
           <div className={styles.tokenInputValue}>
             {quote.rate} · Fee {quote.fee_estimate}
           </div>
         )}
-        {quoteLoading && (
-          <div className={styles.tokenInputValue}>
-            <Loader2 size={12} className={styles.spinInline} /> Getting quote…
-          </div>
-        )}
       </div>
 
-      {/* Swap Toggle (visual only, fixed direction) */}
+      {/* Arrow */}
       <div className={styles.swapToggleWrap}>
         <div className={styles.swapToggleBtn}>
           <ArrowDown size={18} />
         </div>
       </div>
 
-      {/* To Input (BTC sats) */}
+      {/* BTC Input (bottom) */}
       <div className={styles.tokenInput}>
         <div className={styles.tokenInputHeader}>
-          <span className={styles.tokenInputLabel}>Buy</span>
-          <span className={styles.tokenInputBalance}>Lightning Testnet</span>
+          <span className={styles.tokenInputLabel}>You receive (BTC)</span>
         </div>
         <div className={styles.tokenInputBody}>
           <input
-            type="number"
+            type="text"
             inputMode="numeric"
             placeholder="0"
             value={btcSats}
-            onChange={(e) => handleBtcChange(e.target.value)}
+            onChange={(e) => setBtcSats(e.target.value)}
             className={styles.tokenInputField}
           />
-          <div className={styles.tokenStaticBadge}>
-            {BTC_SYMBOL}
-          </div>
+          <div className={styles.tokenBadge}>sats</div>
         </div>
-        {btcSats && (
-          <div className={styles.tokenInputValue}>
-            {parseInt(btcSats, 10).toLocaleString()} sats
-          </div>
-        )}
       </div>
 
       {/* Invoice Input */}
-      <div style={{ marginTop: 16 }}>
-        <InvoiceInput value={invoice} onChange={setInvoice} disabled={swapLoading} />
-      </div>
-
-      {/* Rate display */}
-      {quote && btcSats && (
-        <div className={styles.rateRow}>
-          <span>Quote valid until {new Date(quote.valid_until).toLocaleTimeString()}</span>
-        </div>
-      )}
+      <InvoiceInput value={invoice} onChange={handleInvoiceChange} disabled={swapLoading} />
 
       {/* Error */}
       {swapError && (
-        <div className={styles.errorRow}>
-          <AlertCircle size={14} />
-          {swapError}
-        </div>
+        <div className={styles.errorBox}>{swapError.message}</div>
       )}
 
-      {/* Submit Button */}
+      {/* Create Order Button */}
       <button
         onClick={handleCreateOrder}
-        disabled={!canSubmit}
+        disabled={!canCreate}
         className={styles.swapBtn}
       >
         {swapLoading ? (
@@ -174,10 +141,10 @@ export function SwapCard({ onOrderCreated }: SwapCardProps) {
             <Loader2 size={18} className={styles.spin} />
             Creating Order…
           </span>
-        ) : !backendOnline ? (
-          'Backend Offline'
-        ) : !invoiceValid || !btcSats ? (
-          'Enter amount and invoice'
+        ) : !btcSats ? (
+          'Enter BTC amount'
+        ) : !invoiceValid ? (
+          'Paste valid invoice'
         ) : (
           'Create Order'
         )}

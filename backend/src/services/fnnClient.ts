@@ -1,85 +1,61 @@
 import { config } from '../config.js';
 
-export interface JsonRpcRequest {
+interface RpcRequest {
   jsonrpc: '2.0';
-  id: number | string;
+  id: string;
   method: string;
   params: unknown[];
 }
 
-export interface JsonRpcResponse {
+interface RpcResponse<T = unknown> {
   jsonrpc: '2.0';
-  id: number | string;
-  result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
+  id: string;
+  result?: T;
+  error?: { code: number; message: string; data?: unknown };
 }
 
-let requestId = 0;
+export async function fnnRpcCall<T>(method: string, params: unknown[] = []): Promise<T> {
+  const body: RpcRequest = {
+    jsonrpc: '2.0',
+    id: Math.random().toString(36).slice(2),
+    method,
+    params,
+  };
 
-export async function fnnCall<T = unknown>(method: string, params: unknown[] = []): Promise<T> {
-  const id = ++requestId;
-  const body: JsonRpcRequest = { jsonrpc: '2.0', id, method, params };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
   const res = await fetch(config.fnnRpcUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: controller.signal,
   });
 
+  clearTimeout(timeout);
+
   if (!res.ok) {
-    throw new Error(`FNN HTTP error: ${res.status} ${res.statusText}`);
+    throw new Error(`FNN RPC HTTP error: ${res.status} ${res.statusText}`);
   }
 
-  const data = (await res.json()) as JsonRpcResponse;
+  const data = (await res.json()) as RpcResponse<T>;
 
   if (data.error) {
     throw new Error(`FNN RPC error [${data.error.code}]: ${data.error.message}`);
   }
 
-  return data.result as T;
+  if (data.result === undefined) {
+    throw new Error('FNN RPC returned undefined result');
+  }
+
+  return data.result;
 }
 
-export interface NodeInfoResult {
-  version: string;
-  commit_hash: string;
-  public_key: string;
-  node_name?: string;
-  addresses: string[];
-  chain_hash: string;
-  open_channels: number;
-  pending_channels: number;
-  peers_count: number;
-}
-
-export interface SendBtcParams {
-  btc_pay_req: string;
-  currency?: string;
-}
-
-export interface SendBtcResult {
-  payment_hash: string;
-  ckb_invoice: string;
-}
-
-export interface GetCchOrderParams {
-  payment_hash: string;
-}
-
-export type CchOrderStatus =
-  | 'Pending'
-  | 'IncomingAccepted'
-  | 'OutgoingInFlight'
-  | 'Success'
-  | 'Failed';
-
-export interface CchOrderResult {
-  payment_hash: string;
-  status: CchOrderStatus;
-  timestamp: string;
-  btc_pay_req?: string;
-  ckb_invoice?: string;
+export async function checkFnnHealth(): Promise<boolean> {
+  try {
+    await fnnRpcCall('node_info', []);
+    return true;
+  } catch {
+    return false;
+  }
 }

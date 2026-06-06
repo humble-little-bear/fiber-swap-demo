@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { Header } from './components/Header'
 import { SwapCard } from './components/SwapCard'
 import { NodeStatusBadge } from './components/NodeStatusBadge'
-import { OrderPanel } from './components/OrderPanel'
 import styles from './components/App.module.css'
 
 interface ActiveOrder {

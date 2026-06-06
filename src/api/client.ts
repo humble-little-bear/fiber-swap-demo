@@ -1,45 +1,44 @@
-import type { Quote, NodeInfo, SwapResponse, CchOrder } from '../types';
+import type { Quote, CchOrder, NodeInfo } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    const text = await res.text();
+    throw new Error(`API ${res.status}: ${text}`);
   }
 
   return res.json() as Promise<T>;
 }
 
-export const api = {
-  health(): Promise<{ status: string; fnn: string }> {
-    return request('/api/health');
-  },
+export async function getHealth(): Promise<{ status: string; fnnConnected: boolean }> {
+  return fetchJson('/api/health');
+}
 
-  nodeInfo(): Promise<NodeInfo> {
-    return request('/api/node-info');
-  },
+export async function getNodeInfo(): Promise<NodeInfo> {
+  const data = await fetchJson<NodeInfo & { addresses?: string[] }>('/api/node-info');
+  return { ...data, online: true };
+}
 
-  quote(btcSats: number): Promise<Quote> {
-    return request('/api/quote', {
-      method: 'POST',
-      body: JSON.stringify({ btc_sats: btcSats, currency: 'Fibt' }),
-    });
-  },
+export async function postQuote(btcSats: number): Promise<Quote> {
+  return fetchJson('/api/quote', {
+    method: 'POST',
+    body: JSON.stringify({ btc_sats: btcSats }),
+  });
+}
 
-  swapCkbToBtc(btcPayReq: string): Promise<SwapResponse> {
-    return request('/api/swap/ckb-to-btc', {
-      method: 'POST',
-      body: JSON.stringify({ btc_pay_req: btcPayReq, currency: 'Fibt' }),
-    });
-  },
+export async function postSwapCkbToBtc(btcPayReq: string): Promise<CchOrder> {
+  return fetchJson('/api/swap/ckb-to-btc', {
+    method: 'POST',
+    body: JSON.stringify({ btc_pay_req: btcPayReq }),
+  });
+}
 
-  getOrder(paymentHash: string): Promise<CchOrder> {
-    return request(`/api/order/${encodeURIComponent(paymentHash)}`);
-  },
-};
+export async function getOrder(paymentHash: string): Promise<CchOrder> {
+  return fetchJson(`/api/order/${encodeURIComponent(paymentHash)}`);
+}

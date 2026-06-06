@@ -1,57 +1,54 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { api } from '../api/client';
+import { postQuote } from '../api/client';
 import type { Quote } from '../types';
 
-interface UseQuoteResult {
-  quote: Quote | null;
-  loading: boolean;
-  error: string | null;
-}
-
-export function useQuote(btcSats: number | null, debounceMs = 300): UseQuoteResult {
+export function useQuote() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const fetchQuote = useCallback(async (sats: number) => {
-    setLoading(true);
-    try {
-      const q = await api.quote(sats);
-      setQuote(q);
-      setError(null);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [error, setError] = useState<Error | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  const requestQuote = useCallback((btcSats: number) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
     }
 
-    if (btcSats == null || btcSats <= 0) {
-      queueMicrotask(() => {
-        setQuote(null);
-        setError(null);
-      });
+    if (!btcSats || btcSats <= 0) {
+      setQuote(null);
+      setError(null);
       return;
     }
 
-    timerRef.current = setTimeout(() => {
-      fetchQuote(btcSats);
-    }, debounceMs);
+    setLoading(true);
+    setError(null);
 
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const q = await postQuote(btcSats);
+        if (!isMountedRef.current) return;
+        setQuote(q);
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setQuote(null);
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
-    };
-  }, [btcSats, debounceMs, fetchQuote]);
+    }, 300);
+  }, []);
 
-  return { quote, loading, error };
+  return { quote, loading, error, requestQuote };
 }

@@ -1,174 +1,133 @@
-import { useState, useCallback } from 'react';
-import { Copy, CheckCircle2, Loader2, XCircle, Clock, Zap } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { useState, useEffect, useRef } from 'react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
-import type { CchOrderStatus } from '../types';
+import type { CchOrder } from '../types';
+import { Copy, CheckCircle2, XCircle, Clock, Plane, Send, Loader2, Check } from 'lucide-react';
 import styles from './OrderPanel.module.css';
 
 interface OrderPanelProps {
-  paymentHash: string;
-  incomingInvoice: string;
-  outgoingPayReq: string;
-  onClose?: () => void;
+  order: CchOrder;
 }
 
-const STATUS_META: Record<
-  CchOrderStatus,
-  { label: string; color: string; icon: React.ReactNode }
-> = {
-  Pending: {
-    label: 'Pending',
-    color: '#f0a500',
-    icon: <Clock size={16} />,
-  },
-  IncomingAccepted: {
-    label: 'Incoming Accepted',
-    color: '#4c82fb',
-    icon: <CheckCircle2 size={16} />,
-  },
-  OutgoingInFlight: {
-    label: 'Outgoing In Flight',
-    color: '#fc72ff',
-    icon: <Loader2 size={16} className={styles.spin} />,
-  },
-  Success: {
-    label: 'Success',
-    color: '#40b66b',
-    icon: <CheckCircle2 size={16} />,
-  },
-  Failed: {
-    label: 'Failed',
-    color: '#ff4d4f',
-    icon: <XCircle size={16} />,
-  },
+const STATUS_ORDER: Record<string, number> = {
+  Pending: 0,
+  IncomingAccepted: 1,
+  OutgoingInFlight: 2,
+  Success: 3,
+  Failed: 3,
 };
 
-const TIMELINE_STEPS: { status: CchOrderStatus; label: string }[] = [
-  { status: 'Pending', label: 'Pending' },
-  { status: 'IncomingAccepted', label: 'Accepted' },
-  { status: 'OutgoingInFlight', label: 'In Flight' },
-  { status: 'Success', label: 'Success' },
-];
-
-function statusIndex(status: CchOrderStatus): number {
-  const idx = TIMELINE_STEPS.findIndex((s) => s.status === status);
-  return idx >= 0 ? idx : -1;
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'Pending':
+      return 'Pending';
+    case 'IncomingAccepted':
+      return 'Incoming Accepted';
+    case 'OutgoingInFlight':
+      return 'Outgoing In Flight';
+    case 'Success':
+      return 'Success';
+    case 'Failed':
+      return 'Failed';
+    default:
+      return status;
+  }
 }
 
-export function OrderPanel({ paymentHash, incomingInvoice, outgoingPayReq, onClose }: OrderPanelProps) {
-  const { order, loading } = useOrderStatus(paymentHash);
+function isTerminal(status: string): boolean {
+  return status === 'Success' || status === 'Failed';
+}
+
+export function OrderPanel({ order }: OrderPanelProps) {
+  const { data, loading } = useOrderStatus(order.payment_hash);
+  const current = data ?? order;
+  const currentStep = STATUS_ORDER[current.status] ?? 0;
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentStatus = order?.status ?? 'Pending';
-  const meta = STATUS_META[currentStatus];
-  const currentIdx = statusIndex(currentStatus);
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
-  const handleCopy = useCallback(async () => {
+  const handleCopy = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(incomingInvoice);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // ignore
     }
-  }, [incomingInvoice]);
+  };
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <div className={styles.titleRow}>
-          <span className={styles.title}>Order Status</span>
-          {onClose && (
-            <button className={styles.closeBtn} onClick={onClose}>
-              <XCircle size={18} />
-            </button>
-          )}
-        </div>
-        <div className={styles.hashRow}>
-          <span className={styles.hashLabel}>Payment Hash</span>
-          <span className={styles.hashValue}>
-            {paymentHash.slice(0, 10)}…{paymentHash.slice(-8)}
+        <h3 className={styles.title}>Order Created</h3>
+        {loading && !isTerminal(current.status) && (
+          <span className={styles.polling}>
+            <Loader2 size={14} className={styles.spin} />
+            Updating…
           </span>
-        </div>
+        )}
       </div>
 
-      <div className={styles.statusRow}>
-        <span className={styles.statusDot} style={{ color: meta.color }}>
-          {meta.icon}
-        </span>
-        <span className={styles.statusLabel} style={{ color: meta.color }}>
-          {meta.label}
-        </span>
-        {loading && <span className={styles.polling}>Polling…</span>}
+      <div className={styles.section}>
+        <div className={styles.sectionLabel}>Incoming Fiber Invoice</div>
+        <div className={styles.invoiceBox}>
+          <code className={styles.invoiceText}>{current.incoming_invoice}</code>
+          <button
+            className={styles.copyBtn}
+            onClick={() => handleCopy(current.incoming_invoice)}
+            title="Copy invoice"
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+          </button>
+        </div>
       </div>
 
       <div className={styles.timeline}>
-        {TIMELINE_STEPS.map((step, idx) => {
-          const isActive = idx <= currentIdx && currentIdx >= 0;
-          const isCurrent = idx === currentIdx;
+        {['Pending', 'IncomingAccepted', 'OutgoingInFlight', 'Success'].map((s, idx) => {
+          const step = STATUS_ORDER[s] ?? idx;
+          const active = currentStep >= step && current.status !== 'Failed';
+          const isFailed = current.status === 'Failed' && step === 3;
+
           return (
-            <div key={step.status} className={styles.timelineItem}>
-              <div
-                className={`${styles.timelineDot} ${isActive ? styles.timelineDotActive : ''} ${
-                  isCurrent ? styles.timelineDotCurrent : ''
-                }`}
-              />
-              <span
-                className={`${styles.timelineLabel} ${isActive ? styles.timelineLabelActive : ''}`}
-              >
-                {step.label}
+            <div key={s} className={styles.timelineItem}>
+              <div className={styles.timelineIcon}>
+                {isFailed ? (
+                  <XCircle size={18} className={styles.iconFailed} />
+                ) : active ? (
+                  step === 3 ? (
+                    <CheckCircle2 size={18} className={styles.iconSuccess} />
+                  ) : step === 2 ? (
+                    <Plane size={18} className={styles.iconActive} />
+                  ) : step === 1 ? (
+                    <Send size={18} className={styles.iconActive} />
+                  ) : (
+                    <Clock size={18} className={styles.iconActive} />
+                  )
+                ) : (
+                  <div className={styles.iconInactive} />
+                )}
+              </div>
+              <span className={active && !isFailed ? styles.labelActive : styles.labelInactive}>
+                {isFailed ? 'Failed' : statusLabel(s)}
               </span>
-              {idx < TIMELINE_STEPS.length - 1 && (
-                <div
-                  className={`${styles.timelineLine} ${
-                    idx < currentIdx ? styles.timelineLineActive : ''
-                  }`}
-                />
-              )}
             </div>
           );
         })}
       </div>
 
-      <div className={styles.qrSection}>
-        <div className={styles.qrLabel}>Pay this Fiber Invoice</div>
-        <div className={styles.qrWrap}>
-          <QRCodeSVG value={incomingInvoice} size={180} level="M" bgColor="transparent" fgColor="#ffffff" />
-        </div>
-        <button className={styles.copyBtn} onClick={handleCopy}>
-          {copied ? (
-            <>
-              <CheckCircle2 size={14} />
-              Copied
-            </>
-          ) : (
-            <>
-              <Copy size={14} />
-              Copy Invoice
-            </>
-          )}
-        </button>
-      </div>
-
-      <div className={styles.invoices}>
-        <div className={styles.invoiceRow}>
-          <span className={styles.invoiceLabel}>Outgoing (BTC)</span>
-          <span className={styles.invoiceValue} title={outgoingPayReq}>
-            {outgoingPayReq.slice(0, 24)}…
-          </span>
-        </div>
-        <div className={styles.invoiceRow}>
-          <span className={styles.invoiceLabel}>Incoming (Fiber)</span>
-          <span className={styles.invoiceValue} title={incomingInvoice}>
-            {incomingInvoice.slice(0, 24)}…
-          </span>
-        </div>
-      </div>
-
-      <div className={styles.payHint}>
-        <Zap size={14} />
-        Pay the Fiber invoice above with your Fiber wallet to complete the swap.
-      </div>
+      {current.status === 'Success' && (
+        <div className={styles.successBanner}>Payment completed successfully!</div>
+      )}
+      {current.status === 'Failed' && (
+        <div className={styles.errorBanner}>Payment failed. Please try again.</div>
+      )}
     </div>
   );
 }
