@@ -12,4 +12,19 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
+  optimizeDeps: {
+    include: ['@nervosnetwork/fiber-js'],
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('fiber-js')) return 'fiber-wasm'
+        },
+      },
+    },
+  },
 })
