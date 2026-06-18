@@ -4,25 +4,20 @@ import { fnnRpcCall } from '../services/fnnClient.js';
 const router = Router();
 
 interface NodeInfoResult {
-  pubkey: string;
+  node_id: string;
   addresses: string[];
-  channel_count: string;
-  peers_count: string;
-}
-
-function parseHexCount(value: string): number {
-  const parsed = parseInt(value, 16);
-  return Number.isFinite(parsed) ? parsed : 0;
+  channels: unknown[];
+  peers: unknown[];
 }
 
 router.get('/', async (_req, res, next) => {
   try {
     const info = await fnnRpcCall<NodeInfoResult>('node_info', []);
     res.json({
-      node_id: info.pubkey,
+      node_id: info.node_id,
       addresses: info.addresses,
-      channel_count: parseHexCount(info.channel_count),
-      peer_count: parseHexCount(info.peers_count),
+      channel_count: info.channels?.length ?? 0,
+      peer_count: info.peers?.length ?? 0,
     });
   } catch (err) {
     next(err);

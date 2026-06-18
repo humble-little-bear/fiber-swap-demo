@@ -37,38 +37,7 @@ app.use(
   }
 );
 
-import { startFiberNode } from './services/fiberNode.js';
-
-async function main() {
-  let node: { stop: () => Promise<void> } | undefined;
-
-  try {
-    node = await startFiberNode();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[fiber-node] Failed to start node: ${message}`);
-    console.log('[fiber-node] Continuing with configured FNN_RPC_URL; /api/health will report disconnected');
-  }
-
-  const server = app.listen(config.port, () => {
-    console.log(`Backend listening on http://localhost:${config.port}`);
-    console.log(`FNN RPC proxy: ${config.fnnRpcUrl}`);
-  });
-
-  const shutdown = async (signal: string) => {
-    console.log(`\nReceived ${signal}, shutting down...`);
-    server.close(async () => {
-      try {
-        await node?.stop();
-      } catch (err) {
-        console.error('[fiber-node] Error stopping node:', err);
-      }
-      process.exit(0);
-    });
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
-}
-
-main();
+app.listen(config.port, () => {
+  console.log(`Backend listening on http://localhost:${config.port}`);
+  console.log(`FNN RPC proxy: ${config.fnnRpcUrl}`);
+});
