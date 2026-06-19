@@ -34,24 +34,21 @@ export function SwapCard() {
 
   // For amountless invoices the user enters the amount manually.
   // For amountful invoices the amount is derived from the invoice.
-  const btcSats = useMemo(() => {
-    if (!isInvoiceValid) return '';
-    if (isAmountless) return manualBtcSats;
-    return invoiceAmountSats != null ? String(invoiceAmountSats) : '';
-  }, [isInvoiceValid, isAmountless, invoiceAmountSats, manualBtcSats]);
-
-  const enteredSatsInfo = useMemo(() => {
+  const { btcSats, enteredSatsInfo } = useMemo(() => {
     if (!isInvoiceValid) {
-      return { sats: NaN, valid: false };
+      return { btcSats: '', enteredSatsInfo: { sats: NaN, valid: false } };
     }
     if (isAmountless) {
-      return manualParse;
+      return { btcSats: manualBtcSats, enteredSatsInfo: manualParse };
     }
     if (invoiceAmountSats != null) {
-      return { sats: invoiceAmountSats, valid: true };
+      return {
+        btcSats: String(invoiceAmountSats),
+        enteredSatsInfo: { sats: invoiceAmountSats, valid: true },
+      };
     }
-    return { sats: NaN, valid: false };
-  }, [isInvoiceValid, isAmountless, invoiceAmountSats, manualParse]);
+    return { btcSats: '', enteredSatsInfo: { sats: NaN, valid: false } };
+  }, [isInvoiceValid, isAmountless, invoiceAmountSats, manualBtcSats, manualParse]);
 
   // Debounced quote request when the entered sats amount changes.
   useEffect(() => {

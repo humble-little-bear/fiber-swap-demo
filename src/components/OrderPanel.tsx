@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useFiberPayment } from '@fiber-pay/react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
 import { useFiberNodeContext } from '../hooks/useFiberNodeContext';
-import { useOrderPayment } from '../hooks/useOrderPayment';
 import type { CchOrder } from '../types';
 import {
   Copy,
@@ -78,10 +78,12 @@ export function OrderPanel({ order }: OrderPanelProps) {
 
   const fiber = useFiberNodeContext();
   const fiberNode = fiber.isRunning ? fiber.node : null;
-  const { handlePayWithNode, isPaying, paymentResult, paymentError } = useOrderPayment(
-    fiberNode,
-    incomingInvoice
-  );
+  const { payInvoice, isPaying, paymentResult, error: paymentError } = useFiberPayment(fiberNode);
+
+  const handlePayWithNode = useCallback(async () => {
+    if (!fiberNode || !incomingInvoice) return;
+    await payInvoice(incomingInvoice);
+  }, [fiberNode, incomingInvoice, payInvoice]);
 
   useEffect(() => {
     const invoiceRef = invoiceTimeoutRef;
