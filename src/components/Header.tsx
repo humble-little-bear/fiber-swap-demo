@@ -1,8 +1,11 @@
 import { FiberNodeButton } from '@fiber-pay/react';
-import { ArrowLeftRight, Settings, BookOpen } from 'lucide-react';
+import { ArrowLeftRight } from 'lucide-react';
+import { useFiberNodeContext } from '../hooks/useFiberNodeContext';
 import styles from './Header.module.css';
 
 export function Header() {
+  const fiber = useFiberNodeContext();
+
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
@@ -13,16 +16,9 @@ export function Header() {
       </div>
 
       <nav className={styles.nav}>
-        <button className={styles.navItem}>
-          <BookOpen size={18} />
-          <span>Docs</span>
-        </button>
-        <button className={styles.navItem}>
-          <Settings size={18} />
-          <span>Settings</span>
-        </button>
         <div className={styles.connectWrap}>
           <FiberNodeButton
+            fiber={fiber}
             network="testnet"
             strategy="passkey"
             passkeyUsername="FiberSwap User"

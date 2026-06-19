@@ -4,6 +4,12 @@ import type { CchOrder, CchOrderStatus } from '../types';
 
 const TERMINAL_STATES: CchOrderStatus[] = ['Success', 'Failed'];
 
+function isUnrecoverableError(err: unknown): boolean {
+  // fetchJson throws `API ${status}: ${text}`; 4xx client errors should stop polling.
+  const message = err instanceof Error ? err.message : String(err);
+  return /^API 4\d{2}:/.test(message);
+}
+
 function nextInterval(current: number): number {
   return Math.min(current * 1.5, 10000);
 }
@@ -49,7 +55,7 @@ export function useOrderStatus(paymentHash: string | undefined) {
         hasFetchedRef.current = true;
         const e = err instanceof Error ? err : new Error(String(err));
         setError(e);
-        if (isMountedRef.current) {
+        if (isMountedRef.current && !isUnrecoverableError(err)) {
           interval = nextInterval(interval);
           timer = setTimeout(tick, interval);
         }

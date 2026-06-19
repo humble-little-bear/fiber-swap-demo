@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@fiber-swap/shared": "file:../packages/shared",
     "cors": "^2.8.5",
     "express": "^4.21.2"
   },

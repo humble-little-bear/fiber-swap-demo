@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { fnnRpcCall } from '../services/fnnClient.js';
+import { isBOLT11Like, parseBOLT11 } from '../utils/invoice.js';
 
 const router = Router();
 
 interface SendBtcBody {
   btc_pay_req: string;
   currency?: string;
+  btc_sats?: number;
 }
 
 interface SendBtcResult {
@@ -13,16 +15,45 @@ interface SendBtcResult {
   invoice: string;
 }
 
+function isValidSats(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value > 0 &&
+    Number.isSafeInteger(value)
+  );
+}
+
 router.post('/', async (req, res, next) => {
   try {
-    const { btc_pay_req, currency } = req.body as SendBtcBody;
+    const { btc_pay_req, currency, btc_sats } = req.body as SendBtcBody;
 
-    if (!btc_pay_req || typeof btc_pay_req !== 'string') {
+    if (!btc_pay_req || typeof btc_pay_req !== 'string' || !isBOLT11Like(btc_pay_req)) {
       res.status(400).json({ error: 'Missing or invalid btc_pay_req' });
       return;
     }
 
-    const result = await fnnRpcCall<SendBtcResult>('send_btc', [{ btc_pay_req, currency }]);
+    const parsed = parseBOLT11(btc_pay_req);
+
+    const rpcParams: Record<string, unknown> = { btc_pay_req, currency };
+
+    if (parsed.isValid && parsed.isAmountless) {
+      if (!isValidSats(btc_sats)) {
+        res.status(400).json({ error: 'Amountless invoice requires a positive btc_sats amount' });
+        return;
+      }
+      rpcParams.amount = Math.round(btc_sats);
+    }
+    // For amountful invoices we intentionally ignore any frontend-supplied
+    // btc_sats and let FNN use the amount encoded in the invoice. This prevents
+    // API-layer bypass where a caller requests one quote amount but sends a
+    // different amount to FNN.
+    //
+    // If we cannot parse the invoice locally (unknown prefix/amount format) we
+    // do not know whether it is amountless, so we forward it to FNN without an
+    // explicit amount and let FNN validate/require it.
+
+    const result = await fnnRpcCall<SendBtcResult>('send_btc', [rpcParams]);
 
     const now = new Date().toISOString();
     res.json({
@@ -30,6 +61,7 @@ router.post('/', async (req, res, next) => {
       payment_hash: result.payment_hash,
       incoming_invoice: result.invoice,
       outgoing_pay_req: btc_pay_req,
+      network: parsed.network,
       status: 'Pending',
       created_at: now,
     });

@@ -15,13 +15,13 @@ export function useSwap() {
     };
   }, []);
 
-  const createOrder = useCallback(async (btcPayReq: string) => {
+  const createOrder = useCallback(async (btcPayReq: string, btcSats?: number) => {
     setLoading(true);
     setError(null);
     setOrder(null);
 
     try {
-      const o = await postSwapCkbToBtc(btcPayReq);
+      const o = await postSwapCkbToBtc(btcPayReq, btcSats);
       if (!isMountedRef.current) return null;
       setOrder(o);
       return o;

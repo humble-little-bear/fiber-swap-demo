@@ -25,17 +25,22 @@ export async function getNodeInfo(): Promise<NodeInfo> {
   return { ...data, online: true };
 }
 
-export async function postQuote(btcSats: number): Promise<Quote> {
+export async function postQuote(btcSats: number, signal?: AbortSignal): Promise<Quote> {
   return fetchJson('/api/quote', {
     method: 'POST',
     body: JSON.stringify({ btc_sats: btcSats }),
+    signal,
   });
 }
 
-export async function postSwapCkbToBtc(btcPayReq: string): Promise<CchOrder> {
+export async function postSwapCkbToBtc(btcPayReq: string, btcSats?: number): Promise<CchOrder> {
+  const body: Record<string, unknown> = { btc_pay_req: btcPayReq };
+  if (btcSats != null && Number.isFinite(btcSats) && btcSats > 0) {
+    body.btc_sats = Math.round(btcSats);
+  }
   return fetchJson('/api/swap/ckb-to-btc', {
     method: 'POST',
-    body: JSON.stringify({ btc_pay_req: btcPayReq }),
+    body: JSON.stringify(body),
   });
 }
 

@@ -1,55 +1,105 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { RefreshCw, ArrowDown, Loader2 } from 'lucide-react';
+import { RefreshCw, ArrowDown, Loader2, AlertCircle } from 'lucide-react';
 import { useQuote } from '../hooks/useQuote';
 import { useSwap } from '../hooks/useSwap';
 import { InvoiceInput } from './InvoiceInput';
 import { OrderPanel } from './OrderPanel';
+import { parseBOLT11, parseSafeSats } from '../utils/invoice';
+import { formatCkb } from '../utils/format';
 import styles from './SwapCard.module.css';
 
-const SATOSHI_PER_BTC = 100_000_000;
+function formatValidUntil(iso: string): string {
+  const date = new Date(iso);
+  const time = date.getTime();
+  if (!Number.isFinite(time)) return '—';
+  const diff = time - Date.now();
+  if (diff <= 0) return 'Expired';
+  const mins = Math.ceil(diff / 60000);
+  return `Valid for ${mins} min${mins === 1 ? '' : 's'}`;
+}
 
 export function SwapCard() {
-  const [btcSats, setBtcSats] = useState('');
   const [invoice, setInvoice] = useState('');
-  const [invoiceValid, setInvoiceValid] = useState(false);
+  const [manualBtcSats, setManualBtcSats] = useState('');
+  const [manualTouched, setManualTouched] = useState(false);
   const { quote, loading: quoteLoading, requestQuote } = useQuote();
   const { order, loading: swapLoading, error: swapError, createOrder, reset } = useSwap();
 
-  // Debounced quote request when btcSats changes
+  const parsedInvoice = useMemo(() => parseBOLT11(invoice), [invoice]);
+  const manualParse = useMemo(() => parseSafeSats(manualBtcSats), [manualBtcSats]);
+
+  const isInvoiceValid = parsedInvoice.isValid;
+  const invoiceAmountSats = parsedInvoice.amountSats;
+  const isAmountless = parsedInvoice.isAmountless;
+
+  // For amountless invoices the user enters the amount manually.
+  // For amountful invoices the amount is derived from the invoice.
+  const { btcSats, enteredSatsInfo } = useMemo(() => {
+    if (!isInvoiceValid) {
+      return { btcSats: '', enteredSatsInfo: { sats: NaN, valid: false } };
+    }
+    if (isAmountless) {
+      return { btcSats: manualBtcSats, enteredSatsInfo: manualParse };
+    }
+    if (invoiceAmountSats != null) {
+      return {
+        btcSats: String(invoiceAmountSats),
+        enteredSatsInfo: { sats: invoiceAmountSats, valid: true },
+      };
+    }
+    return { btcSats: '', enteredSatsInfo: { sats: NaN, valid: false } };
+  }, [isInvoiceValid, isAmountless, invoiceAmountSats, manualBtcSats, manualParse]);
+
+  // Debounced quote request when the entered sats amount changes.
   useEffect(() => {
-    const sats = parseFloat(btcSats);
-    if (btcSats && Number.isFinite(sats) && sats > 0) {
-      requestQuote(Math.round(sats));
+    if (enteredSatsInfo.valid && enteredSatsInfo.sats > 0) {
+      requestQuote(Math.round(enteredSatsInfo.sats));
     } else {
       requestQuote(0);
     }
-  }, [btcSats, requestQuote]);
+  }, [enteredSatsInfo, requestQuote]);
 
   const ckbAmount = useMemo(() => {
     if (!quote) return '';
-    const hex = quote.ckb_amount;
-    const shannons = parseInt(hex, 16);
-    return (shannons / SATOSHI_PER_BTC).toFixed(4);
+    return formatCkb(quote.ckb_amount);
   }, [quote]);
 
-  const handleInvoiceChange = useCallback((value: string, isValid: boolean) => {
+  const handleInvoiceChange = useCallback((value: string) => {
     setInvoice(value);
-    setInvoiceValid(isValid);
+    setManualBtcSats('');
+    setManualTouched(false);
+  }, []);
+
+  const handleBtcSatsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setManualBtcSats(e.target.value);
+    setManualTouched(true);
   }, []);
 
   const handleCreateOrder = useCallback(async () => {
-    if (!invoiceValid || !btcSats) return;
-    await createOrder(invoice.trim());
-  }, [invoiceValid, btcSats, invoice, createOrder]);
+    if (!isInvoiceValid || !enteredSatsInfo.valid || enteredSatsInfo.sats <= 0 || !quote) return;
+    await createOrder(invoice.trim(), Math.round(enteredSatsInfo.sats));
+  }, [isInvoiceValid, enteredSatsInfo, invoice, createOrder, quote]);
 
   const handleReset = useCallback(() => {
-    setBtcSats('');
+    setManualBtcSats('');
     setInvoice('');
-    setInvoiceValid(false);
     reset();
   }, [reset]);
 
-  const canCreate = invoiceValid && btcSats && !quoteLoading && !swapLoading;
+  const enteredSatsValid = enteredSatsInfo.valid && enteredSatsInfo.sats > 0;
+
+  const manualSatsError = isAmountless && manualTouched && manualBtcSats && !manualParse.valid
+    ? manualParse.error || 'Invalid amount'
+    : '';
+
+  const canCreate =
+    isInvoiceValid &&
+    enteredSatsValid &&
+    !quoteLoading &&
+    !swapLoading &&
+    quote != null;
+
+  const isAmountEditable = isInvoiceValid && isAmountless;
 
   if (order) {
     return (
@@ -57,7 +107,7 @@ export function SwapCard() {
         <OrderPanel order={order} />
         <button className={styles.resetBtn} onClick={handleReset}>
           <RefreshCw size={16} />
-          New Swap
+          New Payment
         </button>
       </div>
     );
@@ -67,7 +117,7 @@ export function SwapCard() {
     <div className={styles.card}>
       {/* Card Header */}
       <div className={styles.cardHeader}>
-        <span className={styles.cardTitle}>CKB → BTC Swap</span>
+        <span className={styles.cardTitle}>Pay a Lightning Invoice</span>
         <div className={styles.cardActions}>
           <button className={styles.iconBtn} onClick={handleReset} title="Reset">
             <RefreshCw size={18} />
@@ -75,10 +125,57 @@ export function SwapCard() {
         </div>
       </div>
 
-      {/* CKB Input (top) */}
+      {/* 1. BTC Lightning Invoice */}
+      <InvoiceInput value={invoice} onChange={handleInvoiceChange} disabled={swapLoading} />
+
+      {/* 2. Recipient gets (BTC sats) */}
       <div className={styles.tokenInput}>
         <div className={styles.tokenInputHeader}>
-          <span className={styles.tokenInputLabel}>You send (CKB)</span>
+          <span className={styles.tokenInputLabel}>Recipient gets (BTC)</span>
+          {isInvoiceValid && !isAmountless && invoiceAmountSats != null && (
+            <span className={styles.tokenInputHint}>from invoice</span>
+          )}
+          {isAmountless && (
+            <span className={styles.tokenInputHint}>amountless invoice — enter amount</span>
+          )}
+        </div>
+        <div className={styles.tokenInputBody}>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder={isAmountless ? 'Enter sats amount' : '0'}
+            value={btcSats}
+            onChange={handleBtcSatsChange}
+            disabled={!isAmountEditable && !isInvoiceValid}
+            readOnly={!isAmountEditable}
+            className={styles.tokenInputField}
+          />
+          <div className={styles.tokenBadge}>sats</div>
+        </div>
+        {isAmountless && (
+          <div className={styles.tokenInputValue}>
+            This invoice has no amount. Enter how many sats to pay.
+          </div>
+        )}
+        {manualSatsError && (
+          <div className={styles.errorBox}>
+            <AlertCircle size={14} />
+            {manualSatsError}
+          </div>
+        )}
+      </div>
+
+      {/* Arrow */}
+      <div className={styles.swapToggleWrap}>
+        <div className={styles.swapToggleBtn}>
+          <ArrowDown size={18} />
+        </div>
+      </div>
+
+      {/* 3. You pay (CKB) */}
+      <div className={styles.tokenInput}>
+        <div className={styles.tokenInputHeader}>
+          <span className={styles.tokenInputLabel}>You pay (CKB)</span>
         </div>
         <div className={styles.tokenInputBody}>
           <input
@@ -92,45 +189,20 @@ export function SwapCard() {
         </div>
         {quote && (
           <div className={styles.tokenInputValue}>
-            {quote.rate} · Fee {quote.fee_estimate}
+            {quote.rate} · Fee {quote.fee_estimate} · {formatValidUntil(quote.valid_until)}
           </div>
         )}
       </div>
 
-      {/* Arrow */}
-      <div className={styles.swapToggleWrap}>
-        <div className={styles.swapToggleBtn}>
-          <ArrowDown size={18} />
-        </div>
-      </div>
-
-      {/* BTC Input (bottom) */}
-      <div className={styles.tokenInput}>
-        <div className={styles.tokenInputHeader}>
-          <span className={styles.tokenInputLabel}>You receive (BTC)</span>
-        </div>
-        <div className={styles.tokenInputBody}>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="0"
-            value={btcSats}
-            onChange={(e) => setBtcSats(e.target.value)}
-            className={styles.tokenInputField}
-          />
-          <div className={styles.tokenBadge}>sats</div>
-        </div>
-      </div>
-
-      {/* Invoice Input */}
-      <InvoiceInput value={invoice} onChange={handleInvoiceChange} disabled={swapLoading} />
-
       {/* Error */}
       {swapError && (
-        <div className={styles.errorBox}>{swapError.message}</div>
+        <div className={styles.errorBox}>
+          <AlertCircle size={14} />
+          {swapError.message}
+        </div>
       )}
 
-      {/* Create Order Button */}
+      {/* 4. Create Order Button */}
       <button
         onClick={handleCreateOrder}
         disabled={!canCreate}
@@ -141,10 +213,19 @@ export function SwapCard() {
             <Loader2 size={18} className={styles.spin} />
             Creating Order…
           </span>
-        ) : !btcSats ? (
-          'Enter BTC amount'
-        ) : !invoiceValid ? (
-          'Paste valid invoice'
+        ) : !isInvoiceValid ? (
+          'Paste a valid invoice'
+        ) : isAmountless && !enteredSatsValid ? (
+          manualSatsError ? 'Invalid BTC amount' : 'Enter BTC amount'
+        ) : !quote ? (
+          quoteLoading ? (
+            <span className={styles.swapBtnLoading}>
+              <Loader2 size={18} className={styles.spin} />
+              Getting quote…
+            </span>
+          ) : (
+            'Waiting for quote…'
+          )
         ) : (
           'Create Order'
         )}
