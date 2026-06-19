@@ -1,30 +1,24 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ClipboardPaste, AlertCircle } from 'lucide-react';
+import { parseBOLT11 } from '../utils/invoice';
 import styles from './InvoiceInput.module.css';
 
 interface InvoiceInputProps {
   value: string;
-  onChange: (value: string, isValid: boolean) => void;
+  onChange: (value: string) => void;
   disabled?: boolean;
-}
-
-// Simple BOLT11 prefix check
-function looksLikeInvoice(s: string): boolean {
-  const trimmed = s.trim();
-  if (!trimmed) return false;
-  return trimmed.toLowerCase().startsWith('lntb') || trimmed.toLowerCase().startsWith('lnbc');
 }
 
 export function InvoiceInput({ value, onChange, disabled }: InvoiceInputProps) {
   const [touched, setTouched] = useState(false);
 
-  const isValid = !value || looksLikeInvoice(value);
+  const parsedInvoice = useMemo(() => parseBOLT11(value), [value]);
+  const isValid = !value || parsedInvoice.isValid;
   const showError = touched && value && !isValid;
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const v = e.target.value;
-      onChange(v, looksLikeInvoice(v));
+      onChange(e.target.value);
     },
     [onChange]
   );
@@ -32,7 +26,7 @@ export function InvoiceInput({ value, onChange, disabled }: InvoiceInputProps) {
   const handlePaste = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
-      onChange(text, looksLikeInvoice(text));
+      onChange(text);
       setTouched(true);
     } catch {
       // ignore clipboard errors
@@ -66,7 +60,7 @@ export function InvoiceInput({ value, onChange, disabled }: InvoiceInputProps) {
       {showError && (
         <div className={styles.error}>
           <AlertCircle size={14} />
-          Does not look like a valid Lightning invoice
+          {parsedInvoice.error || 'Does not look like a valid Lightning invoice'}
         </div>
       )}
     </div>

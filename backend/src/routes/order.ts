@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { fnnRpcCall } from '../services/fnnClient.js';
+import { parseBOLT11 } from '../utils/invoice.js';
 
 const router = Router({ mergeParams: true });
 
@@ -23,11 +24,15 @@ router.get('/', async (req, res, next) => {
       { payment_hash },
     ]);
 
+    const payReq = result.outgoing_pay_req ?? '';
+    const network = parseBOLT11(payReq).network;
+
     res.json({
       payment_hash: result.payment_hash,
       status: result.status,
       incoming_invoice: result.invoice,
-      outgoing_pay_req: result.outgoing_pay_req ?? '',
+      outgoing_pay_req: payReq,
+      network,
     });
   } catch (err) {
     next(err);

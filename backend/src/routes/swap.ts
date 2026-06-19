@@ -61,6 +61,7 @@ router.post('/', async (req, res, next) => {
       payment_hash: result.payment_hash,
       incoming_invoice: result.invoice,
       outgoing_pay_req: btc_pay_req,
+      network: parsed.network,
       status: 'Pending',
       created_at: now,
     });

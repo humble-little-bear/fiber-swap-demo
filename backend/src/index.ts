@@ -32,12 +32,32 @@ app.use(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _next: express.NextFunction
   ) => {
-    console.error(err);
-    res.status(500).json({ error: err.message ?? 'Internal Server Error' });
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 );
 
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   console.log(`Backend listening on http://localhost:${config.port}`);
   console.log(`FNN RPC proxy: ${config.fnnRpcUrl}`);
 });
+
+server.on('error', (err) => {
+  console.error('Server failed to start:', err);
+  process.exit(1);
+});
+
+const shutdown = (signal: string) => {
+  console.log(`Received ${signal}, shutting down gracefully...`);
+  server.close((err) => {
+    if (err) {
+      console.error('Error closing server:', err);
+      process.exit(1);
+    }
+    console.log('Server closed.');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

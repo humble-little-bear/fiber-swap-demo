@@ -66,6 +66,33 @@
   letter-spacing: 0.5px;
 }
 
+.notice {
+  width: var(--content-width);
+  max-width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  color: #facc15;
+  font-size: 13px;
+  line-height: 1.5;
+  animation: fadeIn 0.4s ease;
+}
+
+.noticeIcon {
+  flex-shrink: 0;
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.noticeBody strong {
+  font-weight: 600;
+}
+
 .footer {
   padding: 24px;
   text-align: center;
