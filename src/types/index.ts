@@ -30,7 +30,7 @@ export interface CchOrder {
   payment_hash: string;
   incoming_invoice: string; // Fiber invoice to pay
   outgoing_pay_req: string; // Original BTC invoice
-  network: LightningNetwork;
+  network?: LightningNetwork;
   status: CchOrderStatus;
   created_at: string;
 }

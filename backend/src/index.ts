@@ -33,7 +33,13 @@ app.use(
     _next: express.NextFunction
   ) => {
     console.error('Unhandled error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    // Expose the original message in development so the frontend can show
+    // actionable errors (e.g. "FNN RPC error: Method not found"). Keep the
+    // response generic in production to avoid leaking internals.
+    const isDev = process.env.NODE_ENV === 'development';
+    res.status(500).json({
+      error: isDev ? (err.message || 'Internal Server Error') : 'Internal Server Error',
+    });
   }
 );
 

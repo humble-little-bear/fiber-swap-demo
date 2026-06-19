@@ -35,6 +35,18 @@ const emptyParsed = (): Omit<ParsedInvoice, 'raw'> => ({
   isValid: false,
 });
 
+const BOLT11_LIKE_RE = /^ln[a-z0-9]*1/i;
+
+/**
+ * Returns true for strings that look like a BOLT11 invoice (start with `ln` and
+ * contain the separator `1`). This is intentionally looser than `parseBOLT11`:
+ * it lets the backend forward invoices that use unknown prefixes or amount
+ * formats to FNN, instead of rejecting them at the API layer.
+ */
+export function isBOLT11Like(invoice: string): boolean {
+  return BOLT11_LIKE_RE.test(invoice.trim());
+}
+
 /**
  * Lightweight BOLT11 invoice parser.
  *

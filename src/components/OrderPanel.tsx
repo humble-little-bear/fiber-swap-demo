@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useFiberPayment } from '@fiber-pay/react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
-import { useFiberNodeContext } from '../hooks/useFiberNodeContext';
+import { useFiberNodeContextOptional } from '../hooks/useFiberNodeContextOptional';
+import type { LightningNetwork } from '../utils/invoice';
 import type { CchOrder } from '../types';
 import {
   Copy,
@@ -56,7 +57,7 @@ function ckbExplorerUrl(paymentHash: string): string {
   return `https://pudge.explorer.nervos.org/search?query=${encodeURIComponent(paymentHash)}`;
 }
 
-function btcExplorerUrl(paymentHash: string, network: string): string {
+function btcExplorerUrl(paymentHash: string, network?: LightningNetwork): string {
   const base =
     network === 'mainnet'
       ? 'https://mempool.space'
@@ -76,8 +77,8 @@ export function OrderPanel({ order }: OrderPanelProps) {
   const invoiceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const payReqTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fiber = useFiberNodeContext();
-  const fiberNode = fiber.isRunning ? fiber.node : null;
+  const fiber = useFiberNodeContextOptional();
+  const fiberNode = fiber?.isRunning ? fiber.node : null;
   const { payInvoice, isPaying, paymentResult, error: paymentError } = useFiberPayment(fiberNode);
 
   const handlePayWithNode = useCallback(async () => {
@@ -114,7 +115,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
     }
   };
 
-  const showPayWithNode = fiber.isRunning;
+  const showPayWithNode = fiber?.isRunning ?? false;
 
   return (
     <div className={styles.panel}>
