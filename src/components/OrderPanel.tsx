@@ -165,7 +165,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
           <button
             className={styles.payBtn}
             onClick={handlePayWithNode}
-            disabled={isPaying || isTerminal(current.status) || !incomingInvoice}
+            disabled={isPaying || isTerminal(current.status) || !incomingInvoice || !fiberNode}
           >
             {isPaying ? (
               <span className={styles.payBtnLoading}>

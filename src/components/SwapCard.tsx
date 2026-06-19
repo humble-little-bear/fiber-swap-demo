@@ -76,9 +76,9 @@ export function SwapCard() {
   }, []);
 
   const handleCreateOrder = useCallback(async () => {
-    if (!isInvoiceValid || !enteredSatsInfo.valid || enteredSatsInfo.sats <= 0) return;
+    if (!isInvoiceValid || !enteredSatsInfo.valid || enteredSatsInfo.sats <= 0 || !quote) return;
     await createOrder(invoice.trim(), Math.round(enteredSatsInfo.sats));
-  }, [isInvoiceValid, enteredSatsInfo, invoice, createOrder]);
+  }, [isInvoiceValid, enteredSatsInfo, invoice, createOrder, quote]);
 
   const handleReset = useCallback(() => {
     setManualBtcSats('');

@@ -25,10 +25,11 @@ export async function getNodeInfo(): Promise<NodeInfo> {
   return { ...data, online: true };
 }
 
-export async function postQuote(btcSats: number): Promise<Quote> {
+export async function postQuote(btcSats: number, signal?: AbortSignal): Promise<Quote> {
   return fetchJson('/api/quote', {
     method: 'POST',
     body: JSON.stringify({ btc_sats: btcSats }),
+    signal,
   });
 }
 

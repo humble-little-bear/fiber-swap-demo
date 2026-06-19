@@ -25,9 +25,14 @@ router.get('/', async (req, res, next) => {
     ]);
 
     const payReq = result.outgoing_pay_req ?? '';
-    // If FNN does not return the outgoing invoice, fall back to the demo's
-    // default network (testnet) so the frontend still produces a working link.
-    const network = payReq ? parseBOLT11(payReq).network : 'testnet';
+    const incomingInvoice = result.invoice ?? '';
+    // Prefer the outgoing invoice, fall back to the incoming invoice, then
+    // to the demo's default network (testnet) so the frontend link still works.
+    const network = payReq
+      ? parseBOLT11(payReq).network
+      : incomingInvoice
+        ? parseBOLT11(incomingInvoice).network
+        : 'testnet';
 
     res.json({
       payment_hash: result.payment_hash,
