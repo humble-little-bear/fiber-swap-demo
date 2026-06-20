@@ -16,15 +16,13 @@ export function Header() {
       </div>
 
       <nav className={styles.nav}>
-        <div className={styles.connectWrap}>
-          <FiberNodeButton
-            fiber={fiber}
-            network="testnet"
-            strategy="passkey"
-            passkeyUsername="FiberSwap User"
-            className={styles.connectBtn}
-          />
-        </div>
+        <FiberNodeButton
+          fiber={fiber}
+          network="testnet"
+          strategy="passkey"
+          passkeyUsername="FiberSwap User"
+          className={styles.connectBtn}
+        />
       </nav>
     </header>
   );
