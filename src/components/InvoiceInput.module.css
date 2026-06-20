@@ -67,3 +67,31 @@
   font-size: 12px;
   color: #ef4444;
 }
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.generateBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  background: transparent;
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+  transition: background 0.2s;
+}
+
+.generateBtn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.generateBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

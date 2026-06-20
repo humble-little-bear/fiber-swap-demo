@@ -6,6 +6,7 @@ import nodeRouter from './routes/node.js';
 import quoteRouter from './routes/quote.js';
 import swapRouter from './routes/swap.js';
 import orderRouter from './routes/order.js';
+import btcInvoiceRouter from './routes/btcInvoice.js';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use('/api/node-info', nodeRouter);
 app.use('/api/quote', quoteRouter);
 app.use('/api/swap/ckb-to-btc', swapRouter);
 app.use('/api/order/:payment_hash', orderRouter);
+app.use('/api/btc-invoice', btcInvoiceRouter);
 
 // 404 handler
 app.use((_req, res) => {
