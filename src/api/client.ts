@@ -47,3 +47,16 @@ export async function postSwapCkbToBtc(btcPayReq: string, btcSats?: number): Pro
 export async function getOrder(paymentHash: string): Promise<CchOrder> {
   return fetchJson(`/api/order/${encodeURIComponent(paymentHash)}`);
 }
+
+export interface BtcInvoiceResponse {
+  payment_request: string;
+  payment_hash: string;
+  amount_sats: number;
+}
+
+export async function postBtcInvoice(signal?: AbortSignal): Promise<BtcInvoiceResponse> {
+  return fetchJson('/api/btc-invoice', {
+    method: 'POST',
+    signal,
+  });
+}
