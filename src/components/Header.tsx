@@ -1,4 +1,4 @@
-import { FiberNodeButton } from '@fiber-pay/react';
+import { FiberNodeButton, NodeInfoPanel } from '@fiber-pay/react';
 import { ArrowLeftRight } from 'lucide-react';
 import { useFiberNodeContext } from '../hooks/useFiberNodeContext';
 import styles from './Header.module.css';
@@ -22,6 +22,18 @@ export function Header() {
           strategy="passkey"
           passkeyUsername="FiberSwap User"
           className={styles.connectBtn}
+          tabs={[
+            { id: 'workbench' },
+            { id: 'channels' },
+            {
+              id: 'deposit',
+              label: 'Deposit',
+              render: ({ fiber: { node } }) => (
+                <NodeInfoPanel node={node} network="testnet" showQrCode />
+              ),
+            },
+            { id: 'diagnostics' },
+          ]}
         />
       </nav>
     </header>
