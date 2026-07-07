@@ -1,25 +1,45 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config.js';
-import { claimWbtc } from '../services/faucetService.js';
+import { claimWbtc, queueFaucetClaim } from '../services/faucetService.js';
 
 const router = Router();
 
-// Simple in-memory cooldown store (resets on server restart)
+// Simple in-memory cooldown store (resets on server restart).
+// The backend runs as a single PM2 fork today, so this protects ordinary web
+// traffic. Multi-process deployment should move this to Redis or a database.
 const cooldowns = new Map<string, number>();
+const inFlightClaims = new Set<string>();
+
+function normalizeAddress(address: string): string {
+  return address.trim().toLowerCase();
+}
+
+function secondsUntil(timestamp: number): number {
+  return Math.ceil((timestamp - Date.now()) / 1000);
+}
 
 router.post('/claim', async (req: Request, res: Response) => {
   try {
-    const { address } = req.body as { address?: string };
+    const rawAddress = (req.body as { address?: string }).address;
 
-    if (!address || typeof address !== 'string' || !address.startsWith('ckt1')) {
+    if (!rawAddress || typeof rawAddress !== 'string') {
       res.status(400).json({
         success: false,
-        message: 'Invalid address: must be a CKB testnet address starting with ckt1',
+        message: 'Enter a CKB testnet address',
       });
       return;
     }
 
-    // Check private key config
+    const address = normalizeAddress(rawAddress);
+
+    if (!address.startsWith('ckt1')) {
+      res.status(400).json({
+        success: false,
+        message: 'Address must start with ckt1',
+      });
+      return;
+    }
+
     if (!config.faucetPrivateKey) {
       res.status(500).json({
         success: false,
@@ -28,23 +48,38 @@ router.post('/claim', async (req: Request, res: Response) => {
       return;
     }
 
-    // Check cooldown
     const now = Date.now();
     const cooldownUntil = cooldowns.get(address);
     if (cooldownUntil && now < cooldownUntil) {
-      const remainingSec = Math.ceil((cooldownUntil - now) / 1000);
       res.status(429).json({
         success: false,
-        message: `Cooldown: try again in ${remainingSec}s`,
+        message: `Try again in ${secondsUntil(cooldownUntil)}s`,
         cooldown_until: cooldownUntil,
       });
       return;
     }
 
-    const txHash = await claimWbtc(address);
+    if (inFlightClaims.has(address)) {
+      res.status(409).json({
+        success: false,
+        message: 'A claim for this address is already being processed',
+      });
+      return;
+    }
 
     const nextCooldown = now + config.faucetCooldownSeconds * 1000;
     cooldowns.set(address, nextCooldown);
+    inFlightClaims.add(address);
+
+    let txHash: string;
+    try {
+      txHash = await queueFaucetClaim(() => claimWbtc(address));
+    } catch (err) {
+      cooldowns.delete(address);
+      throw err;
+    } finally {
+      inFlightClaims.delete(address);
+    }
 
     res.json({
       success: true,

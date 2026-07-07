@@ -41,3 +41,11 @@ export interface NodeInfo {
   peer_count: number;
   online: boolean;
 }
+
+export interface FaucetClaimResponse {
+  success: boolean;
+  message: string;
+  amount?: string;
+  tx_hash?: string;
+  cooldown_until?: number;
+}

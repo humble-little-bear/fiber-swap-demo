@@ -113,8 +113,18 @@ const XUDT_CELL_DEP: CellDep = {
   depType: config.wbtcCellDep.depType as 'code',
 };
 
-const MIN_CELL_CAPACITY = BigInt(142_0000_0000); // 142 CKB minimum for xUDT cell with WBTC type script
+const MIN_CELL_CAPACITY = BigInt(142_0000_0000); // 142 CKB minimum for xUDT cell with cWBTC type script
 const TX_FEE = BigInt(10_0000); // 0.001 CKB fee
+let claimQueue = Promise.resolve();
+
+export function queueFaucetClaim<T>(claim: () => Promise<T>): Promise<T> {
+  const run = claimQueue.then(claim, claim);
+  claimQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
 
 async function ckbRpc<T>(method: string, params: unknown[]): Promise<T> {
   const body = { jsonrpc: '2.0' as const, id: 1, method, params };
@@ -257,7 +267,7 @@ export async function claimWbtc(recipientAddress: string): Promise<string> {
   const wbtcInputCapacity = BigInt(inputWbtcCell.output.capacity);
   const changeAmount = inputWbtcCell.amount - claimAmountRaw;
 
-  // Determine how many WBTC outputs we need
+  // Determine how many cWBTC outputs we need.
   const wbtcOutputCount = changeAmount > BigInt(0) ? 2 : 1;
   const neededCapacity = MIN_CELL_CAPACITY * BigInt(wbtcOutputCount) + TX_FEE;
 
