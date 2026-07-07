@@ -12,7 +12,7 @@ interface SendBtcBody {
 
 interface SendBtcResult {
   payment_hash: string;
-  invoice: string;
+  incoming_invoice: { Fiber: string } | string;
 }
 
 function isValidSats(value: unknown): value is number {
@@ -35,7 +35,10 @@ router.post('/', async (req, res, next) => {
 
     const parsed = parseBOLT11(btc_pay_req);
 
-    const rpcParams: Record<string, unknown> = { btc_pay_req, currency };
+    const rpcParams: Record<string, unknown> = {
+      btc_pay_req,
+      currency: currency || 'Fibt', // default to CKB testnet
+    };
 
     if (parsed.isValid && parsed.isAmountless) {
       if (!isValidSats(btc_sats)) {
@@ -55,11 +58,16 @@ router.post('/', async (req, res, next) => {
 
     const result = await fnnRpcCall<SendBtcResult>('send_btc', [rpcParams]);
 
+    // FNN returns incoming_invoice as { Fiber: "fibt..." } — extract the string
+    const incomingInvoice =
+      typeof result.incoming_invoice === 'string'
+        ? result.incoming_invoice
+        : result.incoming_invoice?.Fiber ?? '';
     const now = new Date().toISOString();
     res.json({
       order_id: result.payment_hash,
       payment_hash: result.payment_hash,
-      incoming_invoice: result.invoice,
+      incoming_invoice: incomingInvoice,
       outgoing_pay_req: btc_pay_req,
       network: parsed.network,
       status: 'Pending',

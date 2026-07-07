@@ -7,7 +7,7 @@ const router = Router({ mergeParams: true });
 interface GetCchOrderResult {
   payment_hash: string;
   status: string;
-  invoice: string;
+  incoming_invoice: { Fiber: string } | string;
   outgoing_pay_req?: string;
 }
 
@@ -25,7 +25,10 @@ router.get('/', async (req, res, next) => {
     ]);
 
     const payReq = result.outgoing_pay_req ?? '';
-    const incomingInvoice = result.invoice ?? '';
+    // FNN returns incoming_invoice as { Fiber: "fibt..." } — extract the string
+    const rawInvoice = result.incoming_invoice ?? '';
+    const incomingInvoice =
+      typeof rawInvoice === 'string' ? rawInvoice : rawInvoice?.Fiber ?? '';
     // Prefer the outgoing invoice, fall back to the incoming invoice, then
     // to the demo's default network (testnet) so the frontend link still works.
     const network = payReq
@@ -37,7 +40,7 @@ router.get('/', async (req, res, next) => {
     res.json({
       payment_hash: result.payment_hash,
       status: result.status,
-      incoming_invoice: result.invoice,
+      incoming_invoice: incomingInvoice,
       outgoing_pay_req: payReq,
       network,
     });

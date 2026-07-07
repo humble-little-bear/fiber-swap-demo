@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useFiberPayment } from '@fiber-pay/react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
 import { useFiberNodeContextOptional } from '../hooks/useFiberNodeContextOptional';
 import type { LightningNetwork } from '../utils/invoice';
@@ -19,6 +18,17 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import styles from './OrderPanel.module.css';
+
+/** Public trampoline node (fiber-testnet-public-bottle) used for delegated pathfinding. */
+const TRAMPOLINE_NODE_PUBKEY =
+  '0x02b6d4e3ab86a2ca2fad6fae0ecb2e1e559e0b911939872a90abdda6d20302be71';
+
+/**
+ * Default max fee for trampoline routing (1 CKB = 100,000,000 shannons).
+ * The sender locks `final_amount + max_fee_amount` on the outer route;
+ * any unused portion is returned.
+ */
+const DEFAULT_MAX_FEE_AMOUNT = '0x5f5e100';
 
 interface OrderPanelProps {
   order: CchOrder;
@@ -79,12 +89,42 @@ export function OrderPanel({ order }: OrderPanelProps) {
 
   const fiber = useFiberNodeContextOptional();
   const fiberNode = fiber?.isRunning ? fiber.node : null;
-  const { payInvoice, isPaying, paymentResult, error: paymentError } = useFiberPayment(fiberNode);
+
+  // Local payment state (bypasses useFiberPayment to inject trampoline params)
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentSent, setPaymentSent] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   const handlePayWithNode = useCallback(async () => {
     if (!fiberNode || !incomingInvoice) return;
-    await payInvoice(incomingInvoice);
-  }, [fiberNode, incomingInvoice, payInvoice]);
+    setIsPaying(true);
+    setPaymentError(null);
+    setPaymentSent(false);
+    try {
+      await fiberNode.sendPayment({
+        invoice: incomingInvoice,
+        trampoline_hops: [TRAMPOLINE_NODE_PUBKEY],
+        max_fee_amount: DEFAULT_MAX_FEE_AMOUNT,
+      });
+      if (isMountedRef.current) {
+        setPaymentSent(true);
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        setPaymentError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsPaying(false);
+      }
+    }
+  }, [fiberNode, incomingInvoice]);
 
   useEffect(() => {
     const invoiceRef = invoiceTimeoutRef;
@@ -197,12 +237,15 @@ export function OrderPanel({ order }: OrderPanelProps) {
       </div>
 
       {paymentError && (
-        <div className={styles.errorBanner}>{String(paymentError)}</div>
+        <div className={styles.errorBanner}>
+          <AlertCircle size={14} />
+          {paymentError}
+        </div>
       )}
 
-      {paymentResult && (
+      {paymentSent && (
         <div className={styles.successBanner}>
-          Browser payment sent. Status: {paymentResult.status}.
+          Payment sent via trampoline routing (bottle node).
         </div>
       )}
 

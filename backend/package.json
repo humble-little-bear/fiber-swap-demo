@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@fiber-swap/shared": "file:../packages/shared",
+    "@nervosnetwork/ckb-sdk-core": "^0.109.5",
+    "@nervosnetwork/ckb-sdk-rpc": "^0.109.5",
+    "@nervosnetwork/ckb-sdk-utils": "^0.109.5",
     "cors": "^2.8.5",
     "express": "^4.21.2"
   },

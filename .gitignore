@@ -28,3 +28,7 @@ dist-ssr
 docs/superpowers/
 
 
+
+# Local backend runtime config
+backend/.env
+backend/.env.*
