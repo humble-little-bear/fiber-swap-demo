@@ -25,7 +25,7 @@ export function createBtcInvoice(
     const postData = JSON.stringify({
       value: amountSats.toString(),
       memo,
-      expiry: '3600',
+      expiry: '86400', // 24h — must exceed FNN tlc_expiry_delta (~6h minimum)
     });
 
     const url = new URL('/v1/invoices', config.lndRestUrl);
@@ -35,6 +35,7 @@ export function createBtcInvoice(
         port: url.port || '443',
         path: url.pathname + url.search,
         method: 'POST',
+        timeout: 10000,
         headers: {
           'Grpc-Metadata-macaroon': readMacaroon(),
           'Content-Type': 'application/json',
@@ -61,6 +62,10 @@ export function createBtcInvoice(
       }
     );
 
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('LND request timed out — wallet may be syncing'));
+    });
     req.on('error', reject);
     req.write(postData);
     req.end();

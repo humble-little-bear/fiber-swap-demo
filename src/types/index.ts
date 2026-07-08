@@ -41,3 +41,20 @@ export interface NodeInfo {
   peer_count: number;
   online: boolean;
 }
+
+export interface FaucetClaimResponse {
+  success: boolean;
+  message: string;
+  amount?: string;
+  amount_display?: string;
+  tx_hash?: string;
+  cooldown_until?: number;
+}
+
+export interface FaucetInfo {
+  token: 'cWBTC';
+  decimals: number;
+  amount: string;
+  amount_display: string;
+  cooldown_seconds: number;
+}

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useFiberPayment } from '@fiber-pay/react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
 import { useFiberNodeContextOptional } from '../hooks/useFiberNodeContextOptional';
 import type { LightningNetwork } from '../utils/invoice';
@@ -17,8 +16,20 @@ import {
   Wallet,
   ExternalLink,
   AlertCircle,
+  Droplets,
 } from 'lucide-react';
 import styles from './OrderPanel.module.css';
+
+/** Public trampoline node (fiber-testnet-public-bottle) used for delegated pathfinding. */
+const TRAMPOLINE_NODE_PUBKEY =
+  '0x02b6d4e3ab86a2ca2fad6fae0ecb2e1e559e0b911939872a90abdda6d20302be71';
+
+/**
+ * Default max fee for trampoline routing (1 CKB = 100,000,000 shannons).
+ * The sender locks `final_amount + max_fee_amount` on the outer route;
+ * any unused portion is returned.
+ */
+const DEFAULT_MAX_FEE_AMOUNT = '0x5f5e100';
 
 interface OrderPanelProps {
   order: CchOrder;
@@ -44,6 +55,21 @@ function statusLabel(status: string): string {
       return '已完成，收款方已收到 BTC';
     case 'Failed':
       return '失败，请查看错误信息并重试';
+    default:
+      return status;
+  }
+}
+
+function stepLabel(status: string): string {
+  switch (status) {
+    case 'Pending':
+      return '等待 CKB';
+    case 'IncomingAccepted':
+      return '收到 CKB';
+    case 'OutgoingInFlight':
+      return '支付 BTC';
+    case 'Success':
+      return '完成';
     default:
       return status;
   }
@@ -79,12 +105,42 @@ export function OrderPanel({ order }: OrderPanelProps) {
 
   const fiber = useFiberNodeContextOptional();
   const fiberNode = fiber?.isRunning ? fiber.node : null;
-  const { payInvoice, isPaying, paymentResult, error: paymentError } = useFiberPayment(fiberNode);
+
+  // Local payment state (bypasses useFiberPayment to inject trampoline params)
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentSent, setPaymentSent] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   const handlePayWithNode = useCallback(async () => {
     if (!fiberNode || !incomingInvoice) return;
-    await payInvoice(incomingInvoice);
-  }, [fiberNode, incomingInvoice, payInvoice]);
+    setIsPaying(true);
+    setPaymentError(null);
+    setPaymentSent(false);
+    try {
+      await fiberNode.sendPayment({
+        invoice: incomingInvoice,
+        trampoline_hops: [TRAMPOLINE_NODE_PUBKEY],
+        max_fee_amount: DEFAULT_MAX_FEE_AMOUNT,
+      });
+      if (isMountedRef.current) {
+        setPaymentSent(true);
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        setPaymentError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsPaying(false);
+      }
+    }
+  }, [fiberNode, incomingInvoice]);
 
   useEffect(() => {
     const invoiceRef = invoiceTimeoutRef;
@@ -121,12 +177,6 @@ export function OrderPanel({ order }: OrderPanelProps) {
     <div className={styles.panel}>
       <div className={styles.header}>
         <h3 className={styles.title}>Pay the Fiber invoice below</h3>
-        {loading && !isTerminal(current.status) && (
-          <span className={styles.polling}>
-            <Loader2 size={14} className={styles.spin} />
-            Updating…
-          </span>
-        )}
       </div>
 
       {/* QR Code */}
@@ -194,50 +244,72 @@ export function OrderPanel({ order }: OrderPanelProps) {
           <Copy size={16} />
           Copy & Pay with External Wallet
         </button>
+
+        <a href="/faucet" className={styles.faucetHint}>
+          <Droplets size={14} />
+          Need test cWBTC? Claim from the faucet
+        </a>
       </div>
 
       {paymentError && (
-        <div className={styles.errorBanner}>{String(paymentError)}</div>
-      )}
-
-      {paymentResult && (
-        <div className={styles.successBanner}>
-          Browser payment sent. Status: {paymentResult.status}.
+        <div className={styles.errorBanner}>
+          <AlertCircle size={14} />
+          {paymentError}
         </div>
       )}
 
-      {/* Timeline */}
-      <div className={styles.timeline}>
-        {['Pending', 'IncomingAccepted', 'OutgoingInFlight', 'Success'].map((s, idx) => {
-          const step = STATUS_ORDER[s] ?? idx;
-          const active = currentStep >= step && current.status !== 'Failed';
-          const isFailed = current.status === 'Failed' && step === 3;
+      {paymentSent && (
+        <div className={styles.successBanner}>
+          Payment sent via trampoline routing (bottle node).
+        </div>
+      )}
 
-          return (
-            <div key={s} className={styles.timelineItem}>
-              <div className={styles.timelineIcon}>
-                {isFailed ? (
-                  <XCircle size={18} className={styles.iconFailed} />
-                ) : active ? (
-                  step === 3 ? (
-                    <CheckCircle2 size={18} className={styles.iconSuccess} />
-                  ) : step === 2 ? (
-                    <Plane size={18} className={styles.iconActive} />
-                  ) : step === 1 ? (
-                    <Send size={18} className={styles.iconActive} />
+      <div className={styles.statusBlock}>
+        <div className={styles.statusHeader}>
+          <div>
+            <div className={styles.sectionLabel}>Status</div>
+            <div className={styles.statusCurrent}>{statusLabel(current.status)}</div>
+          </div>
+          {loading && !isTerminal(current.status) && (
+            <span className={styles.polling}>
+              <Loader2 size={14} className={styles.spin} />
+              Updating…
+            </span>
+          )}
+        </div>
+
+        <div className={styles.timeline}>
+          {['Pending', 'IncomingAccepted', 'OutgoingInFlight', 'Success'].map((s, idx) => {
+            const step = STATUS_ORDER[s] ?? idx;
+            const active = currentStep >= step && current.status !== 'Failed';
+            const isFailed = current.status === 'Failed' && step === 3;
+
+            return (
+              <div key={s} className={styles.timelineItem}>
+                <div className={styles.timelineIcon}>
+                  {isFailed ? (
+                    <XCircle size={18} className={styles.iconFailed} />
+                  ) : active ? (
+                    step === 3 ? (
+                      <CheckCircle2 size={18} className={styles.iconSuccess} />
+                    ) : step === 2 ? (
+                      <Plane size={18} className={styles.iconActive} />
+                    ) : step === 1 ? (
+                      <Send size={18} className={styles.iconActive} />
+                    ) : (
+                      <Clock size={18} className={styles.iconActive} />
+                    )
                   ) : (
-                    <Clock size={18} className={styles.iconActive} />
-                  )
-                ) : (
-                  <div className={styles.iconInactive} />
-                )}
+                    <div className={styles.iconInactive} />
+                  )}
+                </div>
+                <span className={active && !isFailed ? styles.labelActive : styles.labelInactive}>
+                  {isFailed ? '失败' : stepLabel(s)}
+                </span>
               </div>
-              <span className={active && !isFailed ? styles.labelActive : styles.labelInactive}>
-                {isFailed ? '失败' : statusLabel(s)}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* Links */}
@@ -269,9 +341,11 @@ export function OrderPanel({ order }: OrderPanelProps) {
         <div className={styles.errorBanner}>Payment failed. Please try again.</div>
       )}
 
-      {/* Original BTC invoice */}
-      <div className={styles.section}>
-        <div className={styles.sectionLabel}>Original BTC Invoice</div>
+      <details className={styles.details}>
+        <summary className={styles.detailsSummary}>
+          <span>Original BTC invoice</span>
+          <span className={styles.detailsHint}>for reference</span>
+        </summary>
         <div className={styles.invoiceBox}>
           <code className={styles.invoiceText}>{current.outgoing_pay_req}</code>
           <button
@@ -282,7 +356,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
             {copiedPayReq ? <Check size={14} /> : <Copy size={14} />}
           </button>
         </div>
-      </div>
+      </details>
     </div>
   );
 }
