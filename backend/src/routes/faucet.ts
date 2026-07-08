@@ -18,6 +18,16 @@ function secondsUntil(timestamp: number): number {
   return Math.ceil((timestamp - Date.now()) / 1000);
 }
 
+function formatCwbtc(rawAmount: string): string {
+  const decimals = 8;
+  const raw = BigInt(rawAmount);
+  const base = BigInt(10) ** BigInt(decimals);
+  const whole = raw / base;
+  const fraction = raw % base;
+  if (fraction === BigInt(0)) return whole.toString();
+  return `${whole}.${fraction.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
+}
+
 router.post('/claim', async (req: Request, res: Response) => {
   try {
     const rawAddress = (req.body as { address?: string }).address;
@@ -83,7 +93,7 @@ router.post('/claim', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: `Claimed ${config.faucetClaimAmount} cWBTC`,
+      message: `Claimed ${formatCwbtc(config.faucetClaimAmount)} cWBTC`,
       amount: config.faucetClaimAmount,
       tx_hash: txHash,
       cooldown_until: nextCooldown,
