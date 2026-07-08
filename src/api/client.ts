@@ -1,4 +1,4 @@
-import type { Quote, CchOrder, FaucetClaimResponse, NodeInfo } from '../types';
+import type { Quote, CchOrder, FaucetClaimResponse, FaucetInfo, NodeInfo } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
@@ -66,4 +66,8 @@ export async function postFaucetClaim(address: string): Promise<FaucetClaimRespo
     method: 'POST',
     body: JSON.stringify({ address }),
   });
+}
+
+export async function getFaucetInfo(): Promise<FaucetInfo> {
+  return fetchJson('/api/faucet/info');
 }

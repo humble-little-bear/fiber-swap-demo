@@ -1,14 +1,30 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, ArrowLeft, CheckCircle2, Droplets, ExternalLink, Loader2 } from 'lucide-react';
-import { postFaucetClaim } from '../api/client';
+import { getFaucetInfo, postFaucetClaim } from '../api/client';
+import type { FaucetInfo } from '../types';
 import styles from './FaucetPage.module.css';
 
 export function FaucetPage() {
   const [address, setAddress] = useState('');
+  const [info, setInfo] = useState<FaucetInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getFaucetInfo()
+      .then((result) => {
+        if (!cancelled) setInfo(result);
+      })
+      .catch(() => {
+        // The claim endpoint still returns a display amount, so info loading is best-effort.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleClaim = useCallback(async () => {
     const trimmed = address.trim();
@@ -21,14 +37,15 @@ export function FaucetPage() {
 
     try {
       const result = await postFaucetClaim(trimmed);
-      setMessage(result.message || 'cWBTC sent');
+      const displayAmount = result.amount_display ?? info?.amount_display;
+      setMessage(displayAmount ? `Claimed ${displayAmount} cWBTC` : result.message || 'cWBTC sent');
       setTxHash(result.tx_hash ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [address, loading]);
+  }, [address, info?.amount_display, loading]);
 
   return (
     <div className={styles.page}>
@@ -51,6 +68,13 @@ export function FaucetPage() {
         </div>
 
         <div className={styles.form}>
+          <div className={styles.amountRow}>
+            <span className={styles.amountLabel}>Amount per claim</span>
+            <span className={styles.amountValue}>
+              {info ? `${info.amount_display} cWBTC` : 'cWBTC'}
+            </span>
+          </div>
+
           <label className={styles.label} htmlFor="faucet-address">
             CKB testnet address
           </label>

@@ -131,7 +131,7 @@ Cell dep:
 }
 ```
 
-The token has 8 decimals. Faucet amounts are raw units, so `1000` means `0.00001 cWBTC`.
+The token has 8 decimals. Faucet configuration stores amounts as raw units, but user-facing API/UI fields display decimal cWBTC. For example, raw `1000` is shown as `0.00001 cWBTC`.
 
 ## API Surface
 

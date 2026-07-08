@@ -28,6 +28,16 @@ function formatCwbtc(rawAmount: string): string {
   return `${whole}.${fraction.toString().padStart(decimals, '0').replace(/0+$/, '')}`;
 }
 
+router.get('/info', (_req: Request, res: Response) => {
+  res.json({
+    token: 'cWBTC',
+    decimals: 8,
+    amount: config.faucetClaimAmount,
+    amount_display: formatCwbtc(config.faucetClaimAmount),
+    cooldown_seconds: config.faucetCooldownSeconds,
+  });
+});
+
 router.post('/claim', async (req: Request, res: Response) => {
   try {
     const rawAddress = (req.body as { address?: string }).address;
@@ -95,6 +105,7 @@ router.post('/claim', async (req: Request, res: Response) => {
       success: true,
       message: `Claimed ${formatCwbtc(config.faucetClaimAmount)} cWBTC`,
       amount: config.faucetClaimAmount,
+      amount_display: formatCwbtc(config.faucetClaimAmount),
       tx_hash: txHash,
       cooldown_until: nextCooldown,
     });
