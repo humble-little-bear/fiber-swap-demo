@@ -35,15 +35,6 @@ function AppContent() {
 
             <NodeStatusBadge />
 
-            <div className={styles.notice}>
-              <span className={styles.noticeIcon}>⚠️</span>
-              <div className={styles.noticeBody}>
-                <strong>This is a testnet demo. Do not send mainnet funds.</strong>
-                <br />
-                请使用 testnet Lightning invoice（以 lntb 开头）。
-              </div>
-            </div>
-
             <SwapCard />
           </>
         )}

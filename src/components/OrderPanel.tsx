@@ -60,6 +60,21 @@ function statusLabel(status: string): string {
   }
 }
 
+function stepLabel(status: string): string {
+  switch (status) {
+    case 'Pending':
+      return '等待 CKB';
+    case 'IncomingAccepted':
+      return '收到 CKB';
+    case 'OutgoingInFlight':
+      return '支付 BTC';
+    case 'Success':
+      return '完成';
+    default:
+      return status;
+  }
+}
+
 function isTerminal(status: string): boolean {
   return status === 'Success' || status === 'Failed';
 }
@@ -162,12 +177,6 @@ export function OrderPanel({ order }: OrderPanelProps) {
     <div className={styles.panel}>
       <div className={styles.header}>
         <h3 className={styles.title}>Pay the Fiber invoice below</h3>
-        {loading && !isTerminal(current.status) && (
-          <span className={styles.polling}>
-            <Loader2 size={14} className={styles.spin} />
-            Updating…
-          </span>
-        )}
       </div>
 
       {/* QR Code */}
@@ -255,38 +264,52 @@ export function OrderPanel({ order }: OrderPanelProps) {
         </div>
       )}
 
-      {/* Timeline */}
-      <div className={styles.timeline}>
-        {['Pending', 'IncomingAccepted', 'OutgoingInFlight', 'Success'].map((s, idx) => {
-          const step = STATUS_ORDER[s] ?? idx;
-          const active = currentStep >= step && current.status !== 'Failed';
-          const isFailed = current.status === 'Failed' && step === 3;
+      <div className={styles.statusBlock}>
+        <div className={styles.statusHeader}>
+          <div>
+            <div className={styles.sectionLabel}>Status</div>
+            <div className={styles.statusCurrent}>{statusLabel(current.status)}</div>
+          </div>
+          {loading && !isTerminal(current.status) && (
+            <span className={styles.polling}>
+              <Loader2 size={14} className={styles.spin} />
+              Updating…
+            </span>
+          )}
+        </div>
 
-          return (
-            <div key={s} className={styles.timelineItem}>
-              <div className={styles.timelineIcon}>
-                {isFailed ? (
-                  <XCircle size={18} className={styles.iconFailed} />
-                ) : active ? (
-                  step === 3 ? (
-                    <CheckCircle2 size={18} className={styles.iconSuccess} />
-                  ) : step === 2 ? (
-                    <Plane size={18} className={styles.iconActive} />
-                  ) : step === 1 ? (
-                    <Send size={18} className={styles.iconActive} />
+        <div className={styles.timeline}>
+          {['Pending', 'IncomingAccepted', 'OutgoingInFlight', 'Success'].map((s, idx) => {
+            const step = STATUS_ORDER[s] ?? idx;
+            const active = currentStep >= step && current.status !== 'Failed';
+            const isFailed = current.status === 'Failed' && step === 3;
+
+            return (
+              <div key={s} className={styles.timelineItem}>
+                <div className={styles.timelineIcon}>
+                  {isFailed ? (
+                    <XCircle size={18} className={styles.iconFailed} />
+                  ) : active ? (
+                    step === 3 ? (
+                      <CheckCircle2 size={18} className={styles.iconSuccess} />
+                    ) : step === 2 ? (
+                      <Plane size={18} className={styles.iconActive} />
+                    ) : step === 1 ? (
+                      <Send size={18} className={styles.iconActive} />
+                    ) : (
+                      <Clock size={18} className={styles.iconActive} />
+                    )
                   ) : (
-                    <Clock size={18} className={styles.iconActive} />
-                  )
-                ) : (
-                  <div className={styles.iconInactive} />
-                )}
+                    <div className={styles.iconInactive} />
+                  )}
+                </div>
+                <span className={active && !isFailed ? styles.labelActive : styles.labelInactive}>
+                  {isFailed ? '失败' : stepLabel(s)}
+                </span>
               </div>
-              <span className={active && !isFailed ? styles.labelActive : styles.labelInactive}>
-                {isFailed ? '失败' : statusLabel(s)}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* Links */}
@@ -318,9 +341,11 @@ export function OrderPanel({ order }: OrderPanelProps) {
         <div className={styles.errorBanner}>Payment failed. Please try again.</div>
       )}
 
-      {/* Original BTC invoice */}
-      <div className={styles.section}>
-        <div className={styles.sectionLabel}>Original BTC Invoice</div>
+      <details className={styles.details}>
+        <summary className={styles.detailsSummary}>
+          <span>Original BTC invoice</span>
+          <span className={styles.detailsHint}>for reference</span>
+        </summary>
         <div className={styles.invoiceBox}>
           <code className={styles.invoiceText}>{current.outgoing_pay_req}</code>
           <button
@@ -331,7 +356,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
             {copiedPayReq ? <Check size={14} /> : <Copy size={14} />}
           </button>
         </div>
-      </div>
+      </details>
     </div>
   );
 }
