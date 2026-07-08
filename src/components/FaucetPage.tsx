@@ -45,7 +45,7 @@ export function FaucetPage() {
     } finally {
       setLoading(false);
     }
-  }, [address, info?.amount_display, loading]);
+  }, [address, info, loading]);
 
   return (
     <div className={styles.page}>
@@ -69,9 +69,9 @@ export function FaucetPage() {
 
         <div className={styles.form}>
           <div className={styles.amountRow}>
-            <span className={styles.amountLabel}>Amount per claim</span>
+            <span className={styles.amountLabel}>Each claim sends</span>
             <span className={styles.amountValue}>
-              {info ? `${info.amount_display} cWBTC` : 'cWBTC'}
+              {info ? `${info.amount_display} cWBTC` : '—'}
             </span>
           </div>
 

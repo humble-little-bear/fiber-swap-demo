@@ -1,6 +1,6 @@
 import { config } from '../config.js';
 import CKB from '@nervosnetwork/ckb-sdk-core';
-import { addressToScript, privateKeyToAddress, scriptToAddress, AddressPrefix } from '@nervosnetwork/ckb-sdk-utils';
+import { addressToScript, privateKeyToAddress, AddressPrefix } from '@nervosnetwork/ckb-sdk-utils';
 
 interface CellDep {
   outPoint: { txHash: string; index: string };
@@ -113,7 +113,8 @@ const XUDT_CELL_DEP: CellDep = {
   depType: config.wbtcCellDep.depType as 'code',
 };
 
-const MIN_CELL_CAPACITY = BigInt(142_0000_0000); // 142 CKB minimum for xUDT cell with cWBTC type script
+const MIN_XUDT_CELL_CAPACITY = BigInt(147_0000_0000); // ~147 CKB minimum for cWBTC xUDT output cell
+const MIN_CKB_CHANGE_CAPACITY = BigInt(61_0000_0000); // 61 CKB minimum for a plain secp256k1 change cell
 const TX_FEE = BigInt(10_0000); // 0.001 CKB fee
 let claimQueue = Promise.resolve();
 
@@ -269,7 +270,7 @@ export async function claimWbtc(recipientAddress: string): Promise<string> {
 
   // Determine how many cWBTC outputs we need.
   const wbtcOutputCount = changeAmount > BigInt(0) ? 2 : 1;
-  const neededCapacity = MIN_CELL_CAPACITY * BigInt(wbtcOutputCount) + TX_FEE;
+  const neededCapacity = MIN_XUDT_CELL_CAPACITY * BigInt(wbtcOutputCount) + TX_FEE;
 
   // Collect additional CKB cells if needed
   let ckbInputCapacity = BigInt(0);
@@ -302,7 +303,7 @@ export async function claimWbtc(recipientAddress: string): Promise<string> {
   const outputDataList: string[] = [];
 
   outputCells.push({
-    capacity: bigIntToHex(MIN_CELL_CAPACITY),
+    capacity: bigIntToHex(MIN_XUDT_CELL_CAPACITY),
     lock: recipientLock,
     type: WBTC_TYPE_SCRIPT,
   });
@@ -310,17 +311,17 @@ export async function claimWbtc(recipientAddress: string): Promise<string> {
 
   if (changeAmount > BigInt(0)) {
     outputCells.push({
-      capacity: bigIntToHex(MIN_CELL_CAPACITY),
+      capacity: bigIntToHex(MIN_XUDT_CELL_CAPACITY),
       lock: faucetLockScript,
       type: WBTC_TYPE_SCRIPT,
     });
     outputDataList.push(packUdtAmount(changeAmount));
   }
 
-  const outputCapacity = MIN_CELL_CAPACITY * BigInt(outputCells.length);
+  const outputCapacity = MIN_XUDT_CELL_CAPACITY * BigInt(outputCells.length);
   const changeCkb = totalInputCapacity - outputCapacity - TX_FEE;
 
-  if (changeCkb >= MIN_CELL_CAPACITY) {
+  if (changeCkb >= MIN_CKB_CHANGE_CAPACITY) {
     outputCells.push({
       capacity: bigIntToHex(changeCkb),
       lock: faucetLockScript,
