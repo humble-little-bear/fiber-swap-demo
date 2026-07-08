@@ -16,6 +16,7 @@ import {
   Wallet,
   ExternalLink,
   AlertCircle,
+  Droplets,
 } from 'lucide-react';
 import styles from './OrderPanel.module.css';
 
@@ -234,6 +235,11 @@ export function OrderPanel({ order }: OrderPanelProps) {
           <Copy size={16} />
           Copy & Pay with External Wallet
         </button>
+
+        <a href="/faucet" className={styles.faucetHint}>
+          <Droplets size={14} />
+          Need test cWBTC? Claim from the faucet
+        </a>
       </div>
 
       {paymentError && (

@@ -154,6 +154,22 @@
   background: var(--bg-hover);
 }
 
+.faucetHint {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.faucetHint:hover {
+  color: var(--accent-cyan);
+}
+
 .nodeHint {
   display: flex;
   align-items: center;

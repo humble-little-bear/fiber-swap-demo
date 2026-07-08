@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { RefreshCw, ArrowDown, Loader2, AlertCircle, Droplets, ExternalLink } from 'lucide-react';
+import { RefreshCw, ArrowDown, Loader2, AlertCircle } from 'lucide-react';
 import { useQuote } from '../hooks/useQuote';
 import { useSwap } from '../hooks/useSwap';
 import { InvoiceInput } from './InvoiceInput';
 import { OrderPanel } from './OrderPanel';
-import { postFaucetClaim } from '../api/client';
 import { parseBOLT11, parseSafeSats } from '../utils/invoice';
 import { formatCkb } from '../utils/format';
 import styles from './SwapCard.module.css';
@@ -23,11 +22,6 @@ export function SwapCard() {
   const [invoice, setInvoice] = useState('');
   const [manualBtcSats, setManualBtcSats] = useState('');
   const [manualTouched, setManualTouched] = useState(false);
-  const [faucetAddress, setFaucetAddress] = useState('');
-  const [faucetLoading, setFaucetLoading] = useState(false);
-  const [faucetMessage, setFaucetMessage] = useState<string | null>(null);
-  const [faucetTxHash, setFaucetTxHash] = useState<string | null>(null);
-  const [faucetError, setFaucetError] = useState<string | null>(null);
   const { quote, loading: quoteLoading, requestQuote } = useQuote();
   const { order, loading: swapLoading, error: swapError, createOrder, reset } = useSwap();
 
@@ -92,24 +86,6 @@ export function SwapCard() {
     reset();
   }, [reset]);
 
-  const handleClaimFaucet = useCallback(async () => {
-    const address = faucetAddress.trim();
-    if (!address || faucetLoading) return;
-    setFaucetLoading(true);
-    setFaucetError(null);
-    setFaucetMessage(null);
-    setFaucetTxHash(null);
-    try {
-      const result = await postFaucetClaim(address);
-      setFaucetMessage(result.message || 'cWBTC sent');
-      setFaucetTxHash(result.tx_hash ?? null);
-    } catch (err) {
-      setFaucetError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setFaucetLoading(false);
-    }
-  }, [faucetAddress, faucetLoading]);
-
   const enteredSatsValid = enteredSatsInfo.valid && enteredSatsInfo.sats > 0;
 
   const manualSatsError = isAmountless && manualTouched && manualBtcSats && !manualParse.valid
@@ -147,56 +123,6 @@ export function SwapCard() {
             <RefreshCw size={18} />
           </button>
         </div>
-      </div>
-
-      <div className={styles.faucetBox}>
-        <div className={styles.faucetHeader}>
-          <div className={styles.faucetTitle}>
-            <Droplets size={15} />
-            Need test cWBTC?
-          </div>
-          <span className={styles.faucetHint}>One claim per address cooldown</span>
-        </div>
-        <div className={styles.faucetControls}>
-          <input
-            type="text"
-            placeholder="Paste ckt1... address"
-            value={faucetAddress}
-            onChange={(e) => setFaucetAddress(e.target.value)}
-            className={styles.faucetInput}
-            disabled={faucetLoading}
-          />
-          <button
-            type="button"
-            className={styles.faucetBtn}
-            onClick={handleClaimFaucet}
-            disabled={faucetLoading || !faucetAddress.trim()}
-          >
-            {faucetLoading ? <Loader2 size={14} className={styles.spin} /> : 'Claim'}
-          </button>
-        </div>
-        {faucetMessage && (
-          <div className={styles.faucetSuccess}>
-            {faucetMessage}
-            {faucetTxHash && (
-              <a
-                href={`https://pudge.explorer.nervos.org/transaction/${faucetTxHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.faucetLink}
-              >
-                <ExternalLink size={12} />
-                View tx
-              </a>
-            )}
-          </div>
-        )}
-        {faucetError && (
-          <div className={styles.faucetError}>
-            <AlertCircle size={13} />
-            {faucetError}
-          </div>
-        )}
       </div>
 
       {/* 1. BTC Lightning Invoice */}
