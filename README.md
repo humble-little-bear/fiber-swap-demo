@@ -133,7 +133,7 @@ Cell dep:
 }
 ```
 
-The token has 8 decimals. Faucet configuration stores amounts as raw units, but user-facing API/UI fields display decimal cWBTC. For example, raw `1000` is shown as `0.00001 cWBTC`.
+The token has 8 decimals. Faucet configuration stores amounts as raw units, but user-facing API/UI fields display decimal cWBTC. For example, raw `5000000000` is shown as `50 cWBTC`.
 
 ## API Surface
 
@@ -191,7 +191,7 @@ The backend reads configuration from environment variables.
 | `BTC_INVOICE_AMOUNT_SATS` | `100` | Amount for generated demo invoices. |
 | `FAUCET_PRIVATE_KEY` | unset | Enables `/faucet`; keep out of git. |
 | `CKB_RPC_URL` | `https://testnet.ckbapp.dev/` | CKB testnet RPC for faucet transactions. |
-| `FAUCET_CLAIM_AMOUNT` | `1000` | Raw cWBTC units per claim. |
+| `FAUCET_CLAIM_AMOUNT` | `5000000000` | Raw cWBTC units per claim. |
 | `FAUCET_COOLDOWN_SECONDS` | `60` | In-memory per-address cooldown. |
 
 ## Faucet Notes

@@ -24,8 +24,8 @@ export const config = {
   // Faucet
   faucetPrivateKey: process.env.FAUCET_PRIVATE_KEY ?? '',
   ckbRpcUrl: process.env.CKB_RPC_URL ?? 'https://testnet.ckbapp.dev/',
-  /** Amount of cWBTC to send per claim (in shannons, with 8 decimals). Default: 1000 = 0.00001 cWBTC */
-  faucetClaimAmount: process.env.FAUCET_CLAIM_AMOUNT ?? '1000',
+  /** Amount of cWBTC to send per claim (in shannons, with 8 decimals). Default: 5000000000 = 50 cWBTC */
+  faucetClaimAmount: process.env.FAUCET_CLAIM_AMOUNT ?? '5000000000',
   /** Cooldown in seconds between claims for the same address. Default: 60 seconds. */
   faucetCooldownSeconds: Number(process.env.FAUCET_COOLDOWN_SECONDS ?? '60'),
 

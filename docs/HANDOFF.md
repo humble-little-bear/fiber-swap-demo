@@ -162,7 +162,7 @@ If payment routing fails, check:
 
 The faucet is a demo faucet, not a production-grade distribution service.
 
-- User-facing amount is decimal cWBTC, for example `0.00001 cWBTC`.
+- User-facing amount is decimal cWBTC, for example `50 cWBTC`.
 - Backend config stores `FAUCET_CLAIM_AMOUNT` as raw xUDT units.
 - Same-address claims are guarded by an in-memory cooldown and in-flight set.
 - Actual faucet transactions are serialized through a process-local queue.
