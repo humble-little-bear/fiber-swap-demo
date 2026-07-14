@@ -5,6 +5,7 @@ Demo app for paying a Bitcoin Lightning invoice from CKB testnet through Fiber C
 The user pastes or generates a BTC testnet Lightning invoice, the backend asks an FNN node to create a CCH order, and the browser Fiber node pays the returned Fiber invoice with test cWBTC. The FNN CCH actor then asks its own payer LND node to settle the original BTC invoice.
 
 For bear deployment and operational context, see [`docs/HANDOFF.md`](docs/HANDOFF.md).
+For a Nervos Talks style write-up of the demo, see [`docs/nervos-talks-cch-demo.md`](docs/nervos-talks-cch-demo.md).
 
 ## Architecture
 
