@@ -45,15 +45,15 @@ const STATUS_ORDER: Record<string, number> = {
 function statusLabel(status: string): string {
   switch (status) {
     case 'Pending':
-      return '等待支付 cWBTC';
+      return 'Waiting for cWBTC payment';
     case 'IncomingAccepted':
-      return '已收到 cWBTC，准备兑付 BTC';
+      return 'cWBTC received, preparing BTC payout';
     case 'OutgoingInFlight':
-      return '正在支付 Lightning invoice';
+      return 'Paying Lightning invoice';
     case 'Success':
-      return '已完成，收款方已收到 BTC';
+      return 'Complete, recipient received BTC';
     case 'Failed':
-      return '失败，请查看错误信息并重试';
+      return 'Failed, check the error and try again';
     default:
       return status;
   }
@@ -62,13 +62,13 @@ function statusLabel(status: string): string {
 function stepLabel(status: string): string {
   switch (status) {
     case 'Pending':
-      return '等待 cWBTC';
+      return 'Waiting for cWBTC';
     case 'IncomingAccepted':
-      return '收到 cWBTC';
+      return 'cWBTC received';
     case 'OutgoingInFlight':
-      return '支付 BTC';
+      return 'Paying BTC';
     case 'Success':
-      return '完成';
+      return 'Complete';
     default:
       return status;
   }
@@ -290,7 +290,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
                   )}
                 </div>
                 <span className={active && !isFailed ? styles.labelActive : styles.labelInactive}>
-                  {isFailed ? '失败' : stepLabel(s)}
+                  {isFailed ? 'Failed' : stepLabel(s)}
                 </span>
               </div>
             );
