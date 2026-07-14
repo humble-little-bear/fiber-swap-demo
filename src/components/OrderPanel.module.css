@@ -263,26 +263,6 @@
   white-space: nowrap;
 }
 
-.links {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent-blue);
-  transition: opacity 0.2s;
-}
-
-.link:hover {
-  opacity: 0.8;
-}
-
 .details {
   border-radius: var(--radius-lg);
   background: var(--bg-tertiary);

@@ -27,9 +27,10 @@ function AppContent() {
         ) : (
           <>
             <div className={styles.hero}>
-              <h1 className={styles.heroTitle}>Pay Lightning Invoice with cWBTC</h1>
+              <h1 className={styles.heroTitle}>Pay Lightning Invoice with CKB UDT</h1>
               <p className={styles.heroSubtitle}>
-                Cross-chain payment proxy powered by the Fiber Network on Nervos CKB.
+                cWBTC is a test CKB UDT we issued as fake wrapped BTC for this demo.{' '}
+                Claim it from the <a href="/faucet" className={styles.heroLink}>faucet</a>.
               </p>
             </div>
 

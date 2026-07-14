@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
 import { useFiberNodeContextOptional } from '../hooks/useFiberNodeContextOptional';
-import type { LightningNetwork } from '../utils/invoice';
 import { CWBTC_TYPE_SCRIPT } from '../context/FiberNodeProvider';
 import type { CchOrder } from '../types';
 import {
@@ -15,7 +14,6 @@ import {
   Loader2,
   Check,
   Wallet,
-  ExternalLink,
   AlertCircle,
   Droplets,
 } from 'lucide-react';
@@ -78,20 +76,6 @@ function stepLabel(status: string): string {
 
 function isTerminal(status: string): boolean {
   return status === 'Success' || status === 'Failed';
-}
-
-function ckbExplorerUrl(paymentHash: string): string {
-  return `https://pudge.explorer.nervos.org/search?query=${encodeURIComponent(paymentHash)}`;
-}
-
-function btcExplorerUrl(paymentHash: string, network?: LightningNetwork): string {
-  const base =
-    network === 'mainnet'
-      ? 'https://mempool.space'
-      : network === 'signet'
-        ? 'https://mempool.space/signet'
-        : 'https://mempool.space/testnet';
-  return `${base}/lightning/payment/${encodeURIComponent(paymentHash)}`;
 }
 
 export function OrderPanel({ order }: OrderPanelProps) {
@@ -312,28 +296,6 @@ export function OrderPanel({ order }: OrderPanelProps) {
             );
           })}
         </div>
-      </div>
-
-      {/* Links */}
-      <div className={styles.links}>
-        <a
-          href={ckbExplorerUrl(current.payment_hash)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.link}
-        >
-          <ExternalLink size={14} />
-          View Fiber payment
-        </a>
-        <a
-          href={btcExplorerUrl(current.payment_hash, current.network)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.link}
-        >
-          <ExternalLink size={14} />
-          View Lightning payment
-        </a>
       </div>
 
       {current.status === 'Success' && (

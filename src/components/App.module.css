@@ -37,6 +37,15 @@
   line-height: 1.5;
 }
 
+.heroLink {
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.heroLink:hover {
+  color: var(--accent-cyan);
+}
+
 .section {
   width: var(--content-width);
   max-width: 100%;
