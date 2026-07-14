@@ -85,6 +85,7 @@ Main Fiber/FNN node:
 - Public browser-node routing uses Bottle as trampoline.
 - CCH config lives in `/home/retric/.fiber-pay/config.yml`.
 - CCH talks to the payer LND at `https://127.0.0.1:10009`.
+- FNN does not have a separate wallet unlock password in this deployment. It is started through `fiber-pay`, and its key material is stored under `/home/retric/.fiber-pay/fiber/sk` and `/home/retric/.fiber-pay/ckb/key`. Do not print those files.
 
 Auxiliary processes have been observed:
 
@@ -100,6 +101,8 @@ PM2 can restart processes, but it cannot unlock LND wallets. After a reboot or L
 ```bash
 /home/retric/.npm-global/bin/pm2 status
 ```
+
+There is no FNN unlock step. If `fnn` is online but unhealthy, inspect `fiber-pay node status --json`, `/home/retric/.fiber-pay/config.yml`, and PM2 logs; do not look for an FNN wallet password.
 
 Unlock the CCH payer LND:
 
