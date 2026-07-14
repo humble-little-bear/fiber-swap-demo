@@ -12,7 +12,8 @@ export interface Token {
 
 export interface Quote {
   btc_sats: number;
-  ckb_amount: string; // hex string
+  cwbtc_amount: string; // raw cWBTC hex string, 8 decimals
+  ckb_amount?: string; // deprecated compatibility field
   rate: string;
   fee_estimate: string;
   valid_until: string; // ISO 8601

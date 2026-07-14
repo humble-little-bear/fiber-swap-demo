@@ -142,7 +142,7 @@ The token has 8 decimals. Faucet configuration stores amounts as raw units, but 
 | --- | --- |
 | `GET /api/health` | Backend health plus FNN connectivity check. |
 | `GET /api/node-info` | FNN node pubkey, addresses, channel count, and peer count. |
-| `POST /api/quote` | Demo quote from sats to CKB. Currently uses a fixed rate. |
+| `POST /api/quote` | Demo quote from sats to cWBTC using the CCH wrapped-BTC unit convention. |
 | `POST /api/btc-invoice` | Creates a BTC testnet invoice on receiver LND. |
 | `POST /api/swap/ckb-to-btc` | Creates a CCH order by calling FNN `send_btc`. |
 | `GET /api/order/:payment_hash` | Reads CCH order status from FNN. |

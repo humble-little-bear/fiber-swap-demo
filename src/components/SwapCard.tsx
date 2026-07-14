@@ -5,7 +5,7 @@ import { useSwap } from '../hooks/useSwap';
 import { InvoiceInput } from './InvoiceInput';
 import { OrderPanel } from './OrderPanel';
 import { parseBOLT11, parseSafeSats } from '../utils/invoice';
-import { formatCkb } from '../utils/format';
+import { formatCwbtc } from '../utils/format';
 import styles from './SwapCard.module.css';
 
 function formatValidUntil(iso: string): string {
@@ -59,9 +59,9 @@ export function SwapCard() {
     }
   }, [enteredSatsInfo, requestQuote]);
 
-  const ckbAmount = useMemo(() => {
+  const cwbtcAmount = useMemo(() => {
     if (!quote) return '';
-    return formatCkb(quote.ckb_amount);
+    return formatCwbtc(quote.cwbtc_amount ?? quote.ckb_amount ?? '0x0');
   }, [quote]);
 
   const handleInvoiceChange = useCallback((value: string) => {
@@ -181,7 +181,7 @@ export function SwapCard() {
           <input
             type="number"
             placeholder="0"
-            value={ckbAmount}
+            value={cwbtcAmount}
             readOnly
             className={styles.tokenInputField}
           />
