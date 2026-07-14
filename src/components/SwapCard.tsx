@@ -172,10 +172,10 @@ export function SwapCard() {
         </div>
       </div>
 
-      {/* 3. You pay (CKB) */}
+      {/* 3. You pay (cWBTC) */}
       <div className={styles.tokenInput}>
         <div className={styles.tokenInputHeader}>
-          <span className={styles.tokenInputLabel}>You pay (CKB)</span>
+          <span className={styles.tokenInputLabel}>You pay (cWBTC)</span>
         </div>
         <div className={styles.tokenInputBody}>
           <input
@@ -185,7 +185,7 @@ export function SwapCard() {
             readOnly
             className={styles.tokenInputField}
           />
-          <div className={styles.tokenBadge}>CKB</div>
+          <div className={styles.tokenBadge}>cWBTC</div>
         </div>
         {quote && (
           <div className={styles.tokenInputValue}>

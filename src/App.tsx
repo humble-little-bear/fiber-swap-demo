@@ -27,7 +27,7 @@ function AppContent() {
         ) : (
           <>
             <div className={styles.hero}>
-              <h1 className={styles.heroTitle}>Pay Lightning Invoice with CKB</h1>
+              <h1 className={styles.heroTitle}>Pay Lightning Invoice with cWBTC</h1>
               <p className={styles.heroSubtitle}>
                 Cross-chain payment proxy powered by the Fiber Network on Nervos CKB.
               </p>

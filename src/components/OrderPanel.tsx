@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
 import { useFiberNodeContextOptional } from '../hooks/useFiberNodeContextOptional';
 import type { LightningNetwork } from '../utils/invoice';
+import { CWBTC_TYPE_SCRIPT } from '../context/FiberNodeProvider';
 import type { CchOrder } from '../types';
 import {
   Copy,
@@ -46,9 +47,9 @@ const STATUS_ORDER: Record<string, number> = {
 function statusLabel(status: string): string {
   switch (status) {
     case 'Pending':
-      return '等待支付 CKB';
+      return '等待支付 cWBTC';
     case 'IncomingAccepted':
-      return '已收到 CKB，准备兑付 BTC';
+      return '已收到 cWBTC，准备兑付 BTC';
     case 'OutgoingInFlight':
       return '正在支付 Lightning invoice';
     case 'Success':
@@ -63,9 +64,9 @@ function statusLabel(status: string): string {
 function stepLabel(status: string): string {
   switch (status) {
     case 'Pending':
-      return '等待 CKB';
+      return '等待 cWBTC';
     case 'IncomingAccepted':
-      return '收到 CKB';
+      return '收到 cWBTC';
     case 'OutgoingInFlight':
       return '支付 BTC';
     case 'Success':
@@ -127,6 +128,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
         invoice: incomingInvoice,
         trampoline_hops: [TRAMPOLINE_NODE_PUBKEY],
         max_fee_amount: DEFAULT_MAX_FEE_AMOUNT,
+        udt_type_script: CWBTC_TYPE_SCRIPT,
       });
       if (isMountedRef.current) {
         setPaymentSent(true);
@@ -321,7 +323,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
           className={styles.link}
         >
           <ExternalLink size={14} />
-          View CKB payment
+          View Fiber payment
         </a>
         <a
           href={btcExplorerUrl(current.payment_hash, current.network)}
