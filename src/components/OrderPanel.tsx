@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
 import { useFiberNodeContextOptional } from '../hooks/useFiberNodeContextOptional';
 import { CWBTC_TYPE_SCRIPT } from '../context/FiberNodeProvider';
-import type { CchOrder } from '../types';
+import type { CchOrder, SwapDirection } from '../types';
 import {
   Copy,
   CheckCircle2,
@@ -38,20 +38,26 @@ const STATUS_ORDER: Record<string, number> = {
   Pending: 0,
   IncomingAccepted: 1,
   OutgoingInFlight: 2,
+  OutgoingSuccess: 2,
   Success: 3,
   Failed: 3,
 };
 
-function statusLabel(status: string): string {
+function statusLabel(status: string, direction: SwapDirection): string {
+  const receiving = direction === 'btc-to-ckb';
   switch (status) {
     case 'Pending':
-      return 'Waiting for cWBTC payment';
+      return receiving ? 'Waiting for BTC payment' : 'Waiting for cWBTC payment';
     case 'IncomingAccepted':
-      return 'cWBTC received, preparing BTC payout';
+      return receiving
+        ? 'BTC received, preparing cWBTC payout'
+        : 'cWBTC received, preparing BTC payout';
     case 'OutgoingInFlight':
-      return 'Paying Lightning invoice';
+      return receiving ? 'Sending cWBTC to your Fiber node' : 'Paying Lightning invoice';
+    case 'OutgoingSuccess':
+      return receiving ? 'cWBTC sent, settling' : 'Lightning payment settled, finalizing';
     case 'Success':
-      return 'Complete, recipient received BTC';
+      return receiving ? 'Complete, you received cWBTC' : 'Complete, recipient received BTC';
     case 'Failed':
       return 'Failed, check the error and try again';
     default:
@@ -59,14 +65,15 @@ function statusLabel(status: string): string {
   }
 }
 
-function stepLabel(status: string): string {
+function stepLabel(status: string, direction: SwapDirection): string {
+  const receiving = direction === 'btc-to-ckb';
   switch (status) {
     case 'Pending':
-      return 'Waiting for cWBTC';
+      return receiving ? 'Waiting for BTC' : 'Waiting for cWBTC';
     case 'IncomingAccepted':
-      return 'cWBTC received';
+      return receiving ? 'BTC received' : 'cWBTC received';
     case 'OutgoingInFlight':
-      return 'Paying BTC';
+      return receiving ? 'Sending cWBTC' : 'Paying BTC';
     case 'Success':
       return 'Complete';
     default:
@@ -81,6 +88,9 @@ function isTerminal(status: string): boolean {
 export function OrderPanel({ order }: OrderPanelProps) {
   const { data, loading } = useOrderStatus(order.payment_hash);
   const current = data ?? order;
+  // Orders created before the direction field existed are ckb-to-btc.
+  const direction: SwapDirection = current.direction ?? order.direction ?? 'ckb-to-btc';
+  const receiving = direction === 'btc-to-ckb';
   const currentStep = STATUS_ORDER[current.status] ?? 0;
   const incomingInvoice = current.incoming_invoice || '';
   const [copiedInvoice, setCopiedInvoice] = useState(false);
@@ -157,12 +167,17 @@ export function OrderPanel({ order }: OrderPanelProps) {
     }
   };
 
-  const showPayWithNode = fiber?.isRunning ?? false;
+  // Browser-node payment only applies to ckb-to-btc orders (the payer leg is
+  // on Fiber). For btc-to-ckb the incoming invoice is paid with BTC from any
+  // external Lightning wallet.
+  const showPayWithNode = (fiber?.isRunning ?? false) && !receiving;
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <h3 className={styles.title}>Pay the Fiber invoice below</h3>
+        <h3 className={styles.title}>
+          {receiving ? 'Pay the Lightning invoice below' : 'Pay the Fiber invoice below'}
+        </h3>
       </div>
 
       {/* QR Code */}
@@ -173,7 +188,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
           ) : (
             <div className={styles.errorBanner}>
               <AlertCircle size={16} />
-              Fiber invoice is unavailable
+              {receiving ? 'Lightning invoice is unavailable' : 'Fiber invoice is unavailable'}
             </div>
           )}
         </div>
@@ -181,7 +196,9 @@ export function OrderPanel({ order }: OrderPanelProps) {
 
       {/* Fiber invoice copy */}
       <div className={styles.section}>
-        <div className={styles.sectionLabel}>Fiber Invoice</div>
+        <div className={styles.sectionLabel}>
+          {receiving ? 'Lightning Invoice' : 'Fiber Invoice'}
+        </div>
         <div className={styles.invoiceBox}>
           <code className={styles.invoiceText}>{incomingInvoice || '—'}</code>
           <button
@@ -215,6 +232,12 @@ export function OrderPanel({ order }: OrderPanelProps) {
               </>
             )}
           </button>
+        ) : receiving ? (
+          <div className={styles.nodeHint}>
+            <AlertCircle size={14} />
+            Pay this invoice with any BTC testnet Lightning wallet. Once it settles, the CCH
+            sends cWBTC to the Fiber invoice you created.
+          </div>
         ) : (
           <div className={styles.nodeHint}>
             <AlertCircle size={14} />
@@ -231,10 +254,12 @@ export function OrderPanel({ order }: OrderPanelProps) {
           Copy & Pay with External Wallet
         </button>
 
-        <a href="/faucet" className={styles.faucetHint}>
-          <Droplets size={14} />
-          Need test cWBTC? Claim from the faucet
-        </a>
+        {!receiving && (
+          <a href="/faucet" className={styles.faucetHint}>
+            <Droplets size={14} />
+            Need test cWBTC? Claim from the faucet
+          </a>
+        )}
       </div>
 
       {paymentError && (
@@ -254,7 +279,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
         <div className={styles.statusHeader}>
           <div>
             <div className={styles.sectionLabel}>Status</div>
-            <div className={styles.statusCurrent}>{statusLabel(current.status)}</div>
+            <div className={styles.statusCurrent}>{statusLabel(current.status, direction)}</div>
           </div>
           {loading && !isTerminal(current.status) && (
             <span className={styles.polling}>
@@ -290,7 +315,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
                   )}
                 </div>
                 <span className={active && !isFailed ? styles.labelActive : styles.labelInactive}>
-                  {isFailed ? 'Failed' : stepLabel(s)}
+                  {isFailed ? 'Failed' : stepLabel(s, direction)}
                 </span>
               </div>
             );
@@ -299,7 +324,11 @@ export function OrderPanel({ order }: OrderPanelProps) {
       </div>
 
       {current.status === 'Success' && (
-        <div className={styles.successBanner}>Payment completed successfully!</div>
+        <div className={styles.successBanner}>
+          {receiving
+            ? 'Swap completed — cWBTC arrived at your browser node.'
+            : 'Payment completed successfully!'}
+        </div>
       )}
       {current.status === 'Failed' && (
         <div className={styles.errorBanner}>Payment failed. Please try again.</div>
@@ -307,7 +336,7 @@ export function OrderPanel({ order }: OrderPanelProps) {
 
       <details className={styles.details}>
         <summary className={styles.detailsSummary}>
-          <span>Original BTC invoice</span>
+          <span>{receiving ? 'Your Fiber receive invoice' : 'Original BTC invoice'}</span>
           <span className={styles.detailsHint}>for reference</span>
         </summary>
         <div className={styles.invoiceBox}>

@@ -47,6 +47,17 @@ export function isBOLT11Like(invoice: string): boolean {
   return BOLT11_LIKE_RE.test(invoice.trim());
 }
 
+const FIBER_INVOICE_LIKE_RE = /^fib[a-z0-9]*1/i;
+
+/**
+ * Returns true for strings that look like a Fiber (CKB) invoice (start with
+ * `fib` and contain the bech32 separator `1`, e.g. `fibt1...`). Like
+ * `isBOLT11Like` this is intentionally loose: strict validation is left to FNN.
+ */
+export function isFiberInvoiceLike(invoice: string): boolean {
+  return FIBER_INVOICE_LIKE_RE.test(invoice.trim());
+}
+
 /**
  * Lightweight BOLT11 invoice parser.
  *

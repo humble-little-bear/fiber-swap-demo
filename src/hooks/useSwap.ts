@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { postSwapCkbToBtc } from '../api/client';
-import type { CchOrder } from '../types';
+import { postSwapCkbToBtc, postSwapBtcToCkb } from '../api/client';
+import type { CchOrder, SwapDirection } from '../types';
 
 export function useSwap() {
   const [order, setOrder] = useState<CchOrder | null>(null);
@@ -15,27 +15,33 @@ export function useSwap() {
     };
   }, []);
 
-  const createOrder = useCallback(async (btcPayReq: string, btcSats?: number) => {
-    setLoading(true);
-    setError(null);
-    setOrder(null);
+  const createOrder = useCallback(
+    async (direction: SwapDirection, payReq: string, btcSats?: number) => {
+      setLoading(true);
+      setError(null);
+      setOrder(null);
 
-    try {
-      const o = await postSwapCkbToBtc(btcPayReq, btcSats);
-      if (!isMountedRef.current) return null;
-      setOrder(o);
-      return o;
-    } catch (err) {
-      if (!isMountedRef.current) return null;
-      const e = err instanceof Error ? err : new Error(String(err));
-      setError(e);
-      return null;
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
+      try {
+        const o =
+          direction === 'btc-to-ckb'
+            ? await postSwapBtcToCkb(payReq)
+            : await postSwapCkbToBtc(payReq, btcSats);
+        if (!isMountedRef.current) return null;
+        setOrder(o);
+        return o;
+      } catch (err) {
+        if (!isMountedRef.current) return null;
+        const e = err instanceof Error ? err : new Error(String(err));
+        setError(e);
+        return null;
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
-    }
-  }, []);
+    },
+    []
+  );
 
   const reset = useCallback(() => {
     setOrder(null);

@@ -14,6 +14,22 @@ interface RpcResponse<T = unknown> {
   error?: { code: number; message: string; data?: unknown };
 }
 
+/**
+ * Error returned by the FNN JSON-RPC endpoint. Swap routes surface these to
+ * callers (502) so integrators can see validation details (e.g. the sha256
+ * hash-algorithm requirement for receive_btc invoices) instead of a generic
+ * 500. Messages originate from FNN/LND and contain no secrets.
+ */
+export class FnnRpcError extends Error {
+  constructor(
+    public readonly rpcCode: number,
+    rpcMessage: string
+  ) {
+    super(`FNN RPC error [${rpcCode}]: ${rpcMessage}`);
+    this.name = 'FnnRpcError';
+  }
+}
+
 export async function fnnRpcCall<T>(method: string, params: unknown[] = []): Promise<T> {
   const body: RpcRequest = {
     jsonrpc: '2.0',
@@ -40,7 +56,7 @@ export async function fnnRpcCall<T>(method: string, params: unknown[] = []): Pro
     const data = (await res.json()) as RpcResponse<T>;
 
     if (data.error) {
-      throw new Error(`FNN RPC error [${data.error.code}]: ${data.error.message}`);
+      throw new FnnRpcError(data.error.code, data.error.message);
     }
 
     if (data.result === undefined) {
