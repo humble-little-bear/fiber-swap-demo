@@ -44,6 +44,13 @@ export async function postSwapCkbToBtc(btcPayReq: string, btcSats?: number): Pro
   });
 }
 
+export async function postSwapBtcToCkb(fiberPayReq: string): Promise<CchOrder> {
+  return fetchJson('/api/swap/btc-to-ckb', {
+    method: 'POST',
+    body: JSON.stringify({ fiber_pay_req: fiberPayReq }),
+  });
+}
+
 export async function getOrder(paymentHash: string): Promise<CchOrder> {
   return fetchJson(`/api/order/${encodeURIComponent(paymentHash)}`);
 }

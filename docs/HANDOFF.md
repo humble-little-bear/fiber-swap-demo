@@ -227,6 +227,26 @@ Expected variables or defaults:
 | `CKB_RPC_URL` | CKB testnet RPC for faucet transactions. |
 | `FAUCET_CLAIM_AMOUNT` | Raw cWBTC amount per claim. UI displays decimal cWBTC. |
 | `FAUCET_COOLDOWN_SECONDS` | In-memory per-address faucet cooldown. |
+| `CCH_BASE_FEE_SATS` | Quote base fee. Must match the FNN `cch.base_fee_sats`. Hosted demo uses `100`. |
+| `CCH_FEE_RATE_PER_MILLION_SATS` | Quote proportional fee. Must match the FNN `cch.fee_rate_per_million_sats`. Hosted demo uses `3000`. |
+
+### CCH fee config (FNN side)
+
+`/home/retric/.fiber-pay/config.yml` must set explicit CCH fees under `cch:`:
+
+```yaml
+cch:
+  base_fee_sats: 100
+  fee_rate_per_million_sats: 3000
+  max_outgoing_fee_percentage: 80
+```
+
+Without a base fee, small orders collect ~0 fee and CCH passes
+`fee_limit_sat=0` to LND, which only allows zero-fee routes — any payee
+behind a routed Lightning hop then fails (fiber-swap-demo#17, upstream
+nervosnetwork/fiber#1593). The values above match fnn v0.9.0 stable defaults.
+The backend quote env vars above must match, or the UI quote disagrees with
+the Fiber invoice FNN actually issues.
 
 ## Smoke Tests
 

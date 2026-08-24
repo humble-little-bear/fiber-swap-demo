@@ -1,8 +1,11 @@
 # Fiber Swap Demo
 
-Demo app for paying a Bitcoin Lightning invoice from CKB testnet through Fiber CCH.
+Demo app for swapping between Bitcoin Lightning and CKB testnet cWBTC in both directions through Fiber CCH.
 
-The user pastes or generates a BTC testnet Lightning invoice, the backend asks an FNN node to create a CCH order, and the browser Fiber node pays the returned Fiber invoice with test cWBTC. The FNN CCH actor then asks its own payer LND node to settle the original BTC invoice.
+- **cWBTC → BTC** (`send_btc`): the user pastes or generates a BTC testnet Lightning invoice, the backend asks an FNN node to create a CCH order, and the browser Fiber node pays the returned Fiber invoice with test cWBTC. The FNN CCH actor then asks its own payer LND node to settle the original BTC invoice.
+- **BTC → cWBTC** (`receive_btc`): the browser Fiber node signs a cWBTC receive invoice (SHA256 hash algorithm — the payment hash is shared with the Lightning side), the backend creates a CCH order, and the user pays the returned Lightning invoice from any BTC testnet wallet. The CCH actor then pays the user's Fiber invoice with cWBTC.
+
+The HTTP API exposes both directions, so external integrators (e.g. an acceptance CI running a daily bidirectional transfer) can drive swaps without the UI. See [API Surface](#api-surface).
 
 For bear deployment and operational context, see [`docs/HANDOFF.md`](docs/HANDOFF.md).
 For a Nervos Talks style write-up of the demo, see [`docs/nervos-talks-cch-demo.md`](docs/nervos-talks-cch-demo.md).
@@ -144,9 +147,19 @@ The token has 8 decimals. Faucet configuration stores amounts as raw units, but 
 | `GET /api/node-info` | FNN node pubkey, addresses, channel count, and peer count. |
 | `POST /api/quote` | Demo quote from sats to cWBTC using the CCH wrapped-BTC unit convention. |
 | `POST /api/btc-invoice` | Creates a BTC testnet invoice on receiver LND. |
-| `POST /api/swap/ckb-to-btc` | Creates a CCH order by calling FNN `send_btc`. |
-| `GET /api/order/:payment_hash` | Reads CCH order status from FNN. |
+| `POST /api/swap/ckb-to-btc` | Creates a CCH order by calling FNN `send_btc`. Body: `{ btc_pay_req, btc_sats? }`. |
+| `POST /api/swap/btc-to-ckb` | Creates a CCH order by calling FNN `receive_btc`. Body: `{ fiber_pay_req }` — a signed cWBTC Fiber invoice from the payee's own node. |
+| `GET /api/order/:payment_hash` | Reads CCH order status from FNN. 404 when the order is unknown. |
 | `POST /api/faucet/claim` | Sends faucet cWBTC to a CKB testnet address. |
+
+Swap responses include `payment_hash`, `direction` (`ckb-to-btc` | `btc-to-ckb`), the `incoming_invoice` the payer must pay (a `fibt...` Fiber invoice for ckb-to-btc, an `lntb...` Lightning invoice for btc-to-ckb), `outgoing_pay_req`, `amount_sats`/`fee_sats` (hex), and `status`. Poll `GET /api/order/:payment_hash` until `Success` / `Failed`.
+
+### Notes for API integrators
+
+- **The Fiber invoice for `receive_btc` must use the SHA256 hash algorithm** (`hash_algorithm: "sha256"` in `new_invoice`). The payment hash is shared with the Lightning hold invoice, and LND only speaks SHA256. The default `ckb_hash` invoice is rejected by FNN with "CKB invoice hash algorithm is not SHA256".
+- Create a **fresh** Fiber invoice per order. Re-submitting the same `fiber_pay_req` is not idempotent on fnn v0.9.0-rc7 — LND rejects the duplicate hold invoice ("invoice with payment hash already exists"). After an order expires or fails, generate a new invoice instead of retrying the old one.
+- FNN-side validation errors are proxied as `502` with the upstream message so CI logs stay actionable; request-shape problems are `400`.
+- The swap only moves value once both legs settle atomically under the same payment hash; unpaid orders simply expire (`cch-order-expiry-delta-seconds`, default 36h).
 
 ## Local Development
 
@@ -175,6 +188,20 @@ Build both:
 ```bash
 npm run build
 cd backend && npm run build
+```
+
+## Vendored fiber-js bundle
+
+The browser loads `@nervosnetwork/fiber-js` through an import map pointing at
+`public/@nervosnetwork/fiber-js.js` (see `index.html`). The SDK imports the
+package with `@vite-ignore`, so the **vendored file — not the npm package — is
+what actually runs in the browser**. When bumping `@nervosnetwork/fiber-js` in
+`package.json`, regenerate the vendored bundle from the installed package:
+
+```bash
+npx esbuild --bundle node_modules/@nervosnetwork/fiber-js/dist/index.js \
+  --format=esm --platform=browser --minify --target=esnext \
+  --outfile=public/@nervosnetwork/fiber-js.js
 ```
 
 ## Backend Configuration

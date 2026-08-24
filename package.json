@@ -10,9 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fiber-pay/react": "^0.2.8",
+    "@fiber-pay/react": "^0.3.2",
     "@fiber-swap/shared": "file:./packages/shared",
-    "@nervosnetwork/fiber-js": "^0.9.0-rc5",
+    "@nervosnetwork/fiber-js": "^0.9.0",
     "lucide-react": "^1.17.0",
     "qrcode.react": "^4.0.0",
     "react": "^19.2.6",

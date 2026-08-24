@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { fnnRpcCall } from '../services/fnnClient.js';
+import { FnnRpcError, fnnRpcCall } from '../services/fnnClient.js';
 import { isBOLT11Like, parseBOLT11 } from '../utils/invoice.js';
+import { extractCchInvoice } from '../utils/cch.js';
 
 const router = Router();
 
@@ -12,7 +13,10 @@ interface SendBtcBody {
 
 interface SendBtcResult {
   payment_hash: string;
-  incoming_invoice: { Fiber: string } | string;
+  incoming_invoice: { Fiber?: string; Lightning?: string } | string;
+  amount_sats?: string;
+  fee_sats?: string;
+  status?: string;
 }
 
 function isValidSats(value: unknown): value is number {
@@ -58,22 +62,26 @@ router.post('/', async (req, res, next) => {
 
     const result = await fnnRpcCall<SendBtcResult>('send_btc', [rpcParams]);
 
-    // FNN returns incoming_invoice as { Fiber: "fibt..." } — extract the string
-    const incomingInvoice =
-      typeof result.incoming_invoice === 'string'
-        ? result.incoming_invoice
-        : result.incoming_invoice?.Fiber ?? '';
+    // FNN returns incoming_invoice as a single-key enum ({ Fiber: "fibt..." })
+    const { invoice: incomingInvoice } = extractCchInvoice(result.incoming_invoice);
     const now = new Date().toISOString();
     res.json({
       order_id: result.payment_hash,
       payment_hash: result.payment_hash,
+      direction: 'ckb-to-btc',
       incoming_invoice: incomingInvoice,
       outgoing_pay_req: btc_pay_req,
+      amount_sats: result.amount_sats,
+      fee_sats: result.fee_sats,
       network: parsed.network,
-      status: 'Pending',
+      status: result.status ?? 'Pending',
       created_at: now,
     });
   } catch (err) {
+    if (err instanceof FnnRpcError) {
+      res.status(502).json({ error: err.message });
+      return;
+    }
     next(err);
   }
 });

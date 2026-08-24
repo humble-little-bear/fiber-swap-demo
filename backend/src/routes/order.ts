@@ -1,14 +1,17 @@
 import { Router } from 'express';
-import { fnnRpcCall } from '../services/fnnClient.js';
+import { FnnRpcError, fnnRpcCall } from '../services/fnnClient.js';
 import { parseBOLT11 } from '../utils/invoice.js';
+import { directionFromIncomingLeg, extractCchInvoice } from '../utils/cch.js';
 
 const router = Router({ mergeParams: true });
 
 interface GetCchOrderResult {
   payment_hash: string;
   status: string;
-  incoming_invoice: { Fiber: string } | string;
+  incoming_invoice: { Fiber?: string; Lightning?: string } | string;
   outgoing_pay_req?: string;
+  amount_sats?: string;
+  fee_sats?: string;
 }
 
 router.get('/', async (req, res, next) => {
@@ -25,26 +28,39 @@ router.get('/', async (req, res, next) => {
     ]);
 
     const payReq = result.outgoing_pay_req ?? '';
-    // FNN returns incoming_invoice as { Fiber: "fibt..." } — extract the string
-    const rawInvoice = result.incoming_invoice ?? '';
-    const incomingInvoice =
-      typeof rawInvoice === 'string' ? rawInvoice : rawInvoice?.Fiber ?? '';
-    // Prefer the outgoing invoice, fall back to the incoming invoice, then
-    // to the demo's default network (testnet) so the frontend link still works.
-    const network = payReq
-      ? parseBOLT11(payReq).network
-      : incomingInvoice
-        ? parseBOLT11(incomingInvoice).network
-        : 'testnet';
+    // FNN returns incoming_invoice as a single-key enum — { Fiber: "fibt..." }
+    // for send_btc orders, { Lightning: "lntb..." } for receive_btc orders.
+    const { invoice: incomingInvoice, leg } = extractCchInvoice(result.incoming_invoice);
+    // The Lightning invoice carries the network: it is the outgoing pay req
+    // for send_btc orders and the incoming invoice for receive_btc orders.
+    // Fall back to the demo's default network (testnet) so the frontend link
+    // still works.
+    const parsedOutgoing = payReq ? parseBOLT11(payReq) : null;
+    const parsedIncoming = incomingInvoice ? parseBOLT11(incomingInvoice) : null;
+    const network =
+      (parsedOutgoing?.isValid ? parsedOutgoing.network : undefined) ??
+      (parsedIncoming?.isValid ? parsedIncoming.network : undefined) ??
+      'testnet';
 
     res.json({
       payment_hash: result.payment_hash,
       status: result.status,
+      direction: directionFromIncomingLeg(leg) ?? undefined,
       incoming_invoice: incomingInvoice,
       outgoing_pay_req: payReq,
+      amount_sats: result.amount_sats,
+      fee_sats: result.fee_sats,
       network,
     });
   } catch (err) {
+    if (err instanceof FnnRpcError) {
+      // FNN reports unknown orders as "Store error: Key not found: Hash256(...)"
+      const notFound = err.message.includes('Key not found');
+      res.status(notFound ? 404 : 502).json({
+        error: notFound ? 'Order not found' : err.message,
+      });
+      return;
+    }
     next(err);
   }
 });
