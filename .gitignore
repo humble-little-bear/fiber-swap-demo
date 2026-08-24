@@ -32,3 +32,7 @@ docs/superpowers/
 # Local backend runtime config
 backend/.env
 backend/.env.*
+
+# Local agent config
+.claude/
+
