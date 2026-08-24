@@ -33,8 +33,8 @@ PM2-managed services observed on bear:
 | `fiber-swap-demo-frontend` | Serves the built React app | Public site is proxied to this service. Observed local port: `4174`. |
 | `fiber-swap-demo-backend` | Express API | Public API is proxied to this service. Observed local port: `3002`. |
 | `fnn` | Main Fiber/FNN CCH actor | Started through `fiber-pay node start --quiet-fnn`; data dir `/home/retric/.fiber-pay`; RPC `127.0.0.1:8227`. |
-| `lnd-hub` | CCH payer LND | Started as `/home/retric/.local/bin/lnd --lnddir=/home/retric/.lnd`. PM2 starts the process, but the wallet still needs unlock after restart. |
-| `lnd-receiver` | Demo receiver LND | Started as `/home/retric/.local/bin/lnd --lnddir=/home/retric/.lnd-receiver`. PM2 starts the process, but the wallet still needs unlock after restart. |
+| `lnd-hub` | CCH payer LND | Started as `/home/retric/.local/bin/lnd --lnddir=/home/retric/.lnd`. Wallet auto-unlocks on start via `wallet-unlock-password-file` in `lnd.conf`. |
+| `lnd-receiver` | Demo receiver LND | Started as `/home/retric/.local/bin/lnd --lnddir=/home/retric/.lnd-receiver`. Wallet auto-unlocks on start via `wallet-unlock-password-file` in `lnd.conf`. |
 
 Useful PM2 commands:
 
@@ -96,7 +96,9 @@ These auxiliary processes are not the public demo path unless configuration poin
 
 ## Restart and Recovery Runbook
 
-PM2 can restart processes, but it cannot unlock LND wallets. After a reboot or LND restart:
+Both LND nodes are configured with `wallet-unlock-password-file` (password files at `/home/retric/.lnd/wallet-password.txt` and `/home/retric/.lnd-receiver/wallet-password.txt`, owner-only permissions), so wallets unlock automatically on process start. If a wallet ever comes up locked anyway (e.g. the password file was removed), the manual unlock commands below still work.
+
+After a reboot or LND restart:
 
 ```bash
 /home/retric/.npm-global/bin/pm2 status
