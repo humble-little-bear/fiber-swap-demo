@@ -79,7 +79,10 @@ router.post('/', async (req, res, next) => {
     });
   } catch (err) {
     if (err instanceof FnnRpcError) {
-      res.status(502).json({ error: err.message });
+      // Not a 502: the CDN in front of the API replaces 5xx bodies with its
+      // own error page, which would hide the actionable FNN message from API
+      // clients (e.g. invoice validation, no-route, self-payment rejection).
+      res.status(400).json({ error: err.message, upstream: true });
       return;
     }
     next(err);

@@ -158,7 +158,7 @@ Swap responses include `payment_hash`, `direction` (`ckb-to-btc` | `btc-to-ckb`)
 
 - **The Fiber invoice for `receive_btc` must use the SHA256 hash algorithm** (`hash_algorithm: "sha256"` in `new_invoice`). The payment hash is shared with the Lightning hold invoice, and LND only speaks SHA256. The default `ckb_hash` invoice is rejected by FNN with "CKB invoice hash algorithm is not SHA256".
 - Create a **fresh** Fiber invoice per order. Re-submitting the same `fiber_pay_req` is not idempotent on fnn v0.9.0-rc7 — LND rejects the duplicate hold invoice ("invoice with payment hash already exists"). After an order expires or fails, generate a new invoice instead of retrying the old one.
-- FNN-side validation errors are proxied as `502` with the upstream message so CI logs stay actionable; request-shape problems are `400`.
+- FNN-side validation errors are returned as `400` with `upstream: true` and the upstream FNN message, so CI logs stay actionable. (We deliberately avoid 5xx here: the CDN in front of the API replaces 5xx bodies with its own error page, which would hide the message.) Request-shape problems are plain `400` without `upstream`.
 - The swap only moves value once both legs settle atomically under the same payment hash; unpaid orders simply expire (`cch-order-expiry-delta-seconds`, default 36h).
 
 ## Local Development

@@ -56,9 +56,13 @@ router.get('/', async (req, res, next) => {
     if (err instanceof FnnRpcError) {
       // FNN reports unknown orders as "Store error: Key not found: Hash256(...)"
       const notFound = err.message.includes('Key not found');
-      res.status(notFound ? 404 : 502).json({
-        error: notFound ? 'Order not found' : err.message,
-      });
+      if (notFound) {
+        res.status(404).json({ error: 'Order not found' });
+      } else {
+        // 400 rather than 502: the CDN replaces 5xx bodies with its own error
+        // page, which would hide the FNN message from API clients.
+        res.status(400).json({ error: err.message, upstream: true });
+      }
       return;
     }
     next(err);
