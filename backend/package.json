@@ -15,7 +15,7 @@
     "@nervosnetwork/ckb-sdk-rpc": "^0.109.5",
     "@nervosnetwork/ckb-sdk-utils": "^0.109.5",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "4.22.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -23,5 +23,10 @@
     "@types/node": "^22.15.21",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "follow-redirects": "1.16.1",
+    "proxy-addr": "2.0.8",
+    "qs": "6.16.0"
   }
 }
